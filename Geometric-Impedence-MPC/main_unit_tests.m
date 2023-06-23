@@ -33,8 +33,8 @@ R = sym('R', [3 3]);
 p = sym('p', [3 1]);
 
 Rs = reshape(kron([1 2 3 4], R), 3, 3, 4);
-ps = reshape(kron([1 2 3 4], p), 3,1,4);
-
+ps = kron([1 2 3 4], p);
+% ps = reshape(kron([1 2 3 4], p), 3,1,4);
 %%
 Ad_SE3(R, p)
 Ad_SE3(Rs, ps)
