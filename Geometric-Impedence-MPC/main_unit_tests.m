@@ -39,4 +39,11 @@ ps = kron([1 2 3 4], p);
 Ad_SE3(R, p)
 Ad_SE3(Rs, ps)
 
+%% Rodrigue's
+w = sym('w', [3 1]);
+rodrigues_SO3_from_R3(w)
+
+%% Exp map
+
+exp_map_SE3(xi)
 
