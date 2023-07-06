@@ -10,7 +10,7 @@ function exp_mat = rodrigues_SO3_from_R3(w_R3)
     hat_w_so3 = hat_so3(w_R3);
     w_abs = norm(w_R3,2);
     
-    USE_FORMULATION_EFF = false;
+    USE_FORMULATION_EFF = true;
     if USE_FORMULATION_EFF
         % [ efficient closed form expression ]: \cite{parkGeometricIntegrationEuclidean2005}
         w_abs_half = w_abs/2;

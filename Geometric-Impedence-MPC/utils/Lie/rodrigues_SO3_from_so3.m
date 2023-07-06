@@ -4,7 +4,7 @@ function exp_mat = rodrigues_SO3_from_so3(hat_w_so3)
     % - so3 ---> SO3
     % < output: mat \in SO(3) rotation matrix R^{3x3}
     
-    [n,m] = size(hat_w_so3)
+    [n,m] = size(hat_w_so3);
     assert( n == 3 && m == 3 , "[ERR] hat_w_so3 must be 3x3 matrix" )
 
     w_R3 = vee_so3(hat_w_so3);
