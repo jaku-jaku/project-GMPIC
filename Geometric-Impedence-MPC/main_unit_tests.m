@@ -2,10 +2,24 @@ close all;
 clear all;
 clc;
 
-%% init helper:
+%% [INIT] ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== 
+% --- 
 addpath(genpath("utils"));
-helper.createFolder("output/test", false);
+% --- 
+helper.logtitle("Initialize")
+% --- 
+% - USER PARAMs:
+SAVE_CONSOLE = false;
+CLEAR_OUTPUT = true;
+CLOSE_WINDOW = true; % pre closing
+AUTO_CLOSE = true;
 
+helper.createFolder("output/test", false);
+% --- 
+helper.endSection(AUTO_CLOSE);
+%% Tests) ===== ===== ===== ===== ===== ===== =====:
+DIR = helper.declareSection("test", "1", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
+% --- 
 %% so3 coord <-> so3
 syms x1 x2 x3 
 x = [x1; x2; x3];
@@ -44,6 +58,8 @@ w = sym('w', [3 1]);
 rodrigues_SO3_from_R3(w)
 
 %% Exp map
+exp_map_SE3_from_R6(xi)
 
-exp_map_SE3(xi)
-
+%% --- 
+helper.endSection(AUTO_CLOSE);
+%% [EOF] ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== 
