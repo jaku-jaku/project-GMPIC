@@ -108,6 +108,30 @@ classdef helper
             ha.X = [xy(1)+offset(1) xy(1)];
             ha.Y = [xy(2)+offset(2) xy(2)];
         end
+        %% Video Rec:
+        function createRecorder(FOLDER, FILE_NAME, QUALITY_, FPS_)
+            global vObj;
+            global vObj_exist;
+            vObj_exist = false;
+            EXP_PATH = sprintf('output/%s/%s.avi', FOLDER, FILE_NAME);
+            vObj = VideoWriter(EXP_PATH);
+            vObj.Quality = QUALITY_;
+            vObj.FrameRate = FPS_;
+            open(vObj);
+        end
+        function recordRecorder()
+            global vObj;
+            global vObj_exist;
+            if vObj_exist
+                writeVideo(vObj, getframe(gcf));
+            end
+        end
+        function terminateRecorder()
+            global vObj;
+            if vObj_exist
+                close(vObj);
+            end
+        end
         %% Save:
         function saveFigure(DIMENSION, FOLDER, FILE_NAME)
             set(gcf,'units','points','position',[0, 0, DIMENSION(1), DIMENSION(2)]);
