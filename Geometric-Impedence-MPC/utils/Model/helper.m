@@ -7,21 +7,24 @@ classdef helper
         end
         function loginfo(message)
             global glevel;
-            if glevel >= 3
-                fprintf("[INFO] %s\n", message);
+            if glevel < 1
+                return;
             end
+            fprintf("[INFO] %s\n", message);
         end
         function logerr(message)
             global glevel;
-            if glevel >= 2
-                fprintf("[-ERR] %s\n", message);
+            if glevel < 2
+                return;
             end
+            fprintf("[-ERR] %s\n", message);
         end
         function logdebug(message)
             global glevel;
-            if glevel >= 1
-                fprintf("[DEBUG] %s\n", message);
+            if glevel < 3
+                return
             end
+            fprintf("[DEBUG] %s\n", message);
         end
         function logwrn(message)
             fprintf("[WARN] %s\n", message);
@@ -34,11 +37,11 @@ classdef helper
             switch level
                 case "all"
                     glevel = 4;
-                case "info"
+                case "debug"
                     glevel = 3;
                 case "error"
                     glevel = 2;
-                case "debug"
+                case "info"
                     glevel = 1;
                 otherwise
                     glevel = -1;

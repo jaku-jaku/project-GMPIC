@@ -45,7 +45,7 @@ classdef common
             pi/2;        % 6-7
         ]; % N jnts
         % - configs:
-        % INIT_JOINT_HOME = [pi;pi/2;0;0;0;0;0];
+        INIT_JOINT_HOME = [0 0 0 0 0 0 0];
     end
     methods(Static)
         % TBD
