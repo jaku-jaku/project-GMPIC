@@ -6,16 +6,44 @@ classdef helper
             fprintf("\n[ ===== %s ===== ]:\n", message);
         end
         function loginfo(message)
-            fprintf("[INFO] %s\n", message);
+            global glevel;
+            if glevel >= 3
+                fprintf("[INFO] %s\n", message);
+            end
         end
         function logerr(message)
-            fprintf("[-ERR] %s\n", message);
+            global glevel;
+            if glevel >= 2
+                fprintf("[-ERR] %s\n", message);
+            end
+        end
+        function logdebug(message)
+            global glevel;
+            if glevel >= 1
+                fprintf("[DEBUG] %s\n", message);
+            end
         end
         function logwrn(message)
             fprintf("[WARN] %s\n", message);
         end
         function logutil(message)
             fprintf("[HELPER]--> %s\n", message);
+        end
+        function setLogLevel(level)
+            global glevel;
+            switch level
+                case "all"
+                    glevel = 4;
+                case "info"
+                    glevel = 3;
+                case "error"
+                    glevel = 2;
+                case "debug"
+                    glevel = 1;
+                otherwise
+                    glevel = -1;
+            end
+            helper.logwrn(sprintf("> Setting Log Level @ [%s:%d]",level,glevel));
         end
         %% SYS:
         function createFolder(path, clear_folder)
@@ -44,7 +72,9 @@ classdef helper
                 global gFigureIndex;
                 gFigureIndex = 1;
             end
+            global gdirectory;
             directory = sprintf("%s/%s", section, subsection);
+            gdirectory = directory;
             fprintf("=========== [%s / %s] (init) ===========\n",  section, subsection);
             helper.createFolder(sprintf("output/%s", directory), clear_folder);
             if if_record
@@ -53,7 +83,8 @@ classdef helper
             fprintf("=========== [%s / %s] (start) ===========\n",  section, subsection);
         end
         function endSection(close_all)
-            fprintf("=========== [ End of Section ] ===========\n")
+            global gdirectory;
+            fprintf("=========== [ End of Section : %s ] ===========\n", gdirectory)
             if close_all
                 close all;
                 global gFigureIndex;
@@ -161,6 +192,7 @@ classdef helper
         end
         %% Latex:
         function latexcode = m2latex(matrix)
+            % array or matrix to string for best latex
             if ~isa(matrix,'sym')
                 matrix = sym(matrix);
             end
@@ -170,6 +202,20 @@ classdef helper
                 latexcode(end) = ']';
             end
             % clipboard('copy',latexcode);
+        end
+        function str = a2str(name, a)
+            % array or matrix to string for best console logs
+            if ~isa(a,'sym')
+                a = sym(a);
+            end
+            a=vpa(simplify(a), 8);
+            [n,m] = size(a);
+            if m>1
+                str = sprintf('\n%s ', join(string(a), ', '));
+            else
+                str = sprintf('%s ', join(string(a), ', '));
+            end
+            str = sprintf("%s=[ %s ]\n",name,str);
         end
     end
 end

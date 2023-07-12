@@ -1,4 +1,4 @@
-function mat = ad_se3_(vec)
+function mat = batch_ad_se3_from_R6(vec)
     % input: vec \in se(3) coordinates vector R^{6xk}
     [n, m] = size(vec);
     assert(n == 6, "[ERR] ad_se3_: vec \in se(3) coordinates vector R^{6xk} (v,w)!");

@@ -1,4 +1,4 @@
-function mat = Ad_SE3(arg1,arg2)
+function mat = Ad_SE3_from_SE3_or_SO3xR3(arg1,arg2)
     if nargin == 1
         % input: mat_SE3 \in SE(3) \subset R^{4x4xk} 
         mat_SE3 = arg1;
