@@ -12,7 +12,7 @@ helper.logtitle("Initialize")
 SAVE_CONSOLE = false;
 CLEAR_OUTPUT = true;
 CLOSE_WINDOW = true; % pre-closing
-AUTO_CLOSE   = false;
+AUTO_CLOSE   = true;
 
 helper.createFolder("output/test", false);
 helper.setLogLevel("all")
@@ -111,7 +111,7 @@ ylabel('Y Axis')
 zlabel('Z Axis')
 
 % axis([-1 1 -1 1 0 1])
-
+helper.saveFigure([400,600], DIR, "FK")
 % --- 
 helper.endSection(AUTO_CLOSE);
 %% [EOF] ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== 
