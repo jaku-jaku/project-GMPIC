@@ -5,6 +5,7 @@ function exp_mat = rodrigues_SO3_from_R3xR(w_R3, t_R)
     % < output: mat \in SO(3) rotation matrix R^{3x3}
     validate.if_dimension("w_R3", w_R3, [3,1]);
     validate.if_unitVector("w_R3", w_R3);
+    % validate.if_inRangeStrict("t_R", t_R, [0, 2*pi]); % --> A(.) non-singular
 
     % pre-compute const, (minimize division operations)
     exp_mat = eye(3);

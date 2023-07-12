@@ -1,7 +1,6 @@
 function mat = hat_se3(vec)
     % input: vec \in se(3) coordinates vector R^{6xk}
-    [ n, k ] = size(vec);
-    assert(n == 6, "[ERR] hat_se3: vec \in se(3) coordinates vector R^{6} (v,w)!");
+    validate.if_dimension("vec \in se(3) coordinates", vec, [6,1]);
     v = vec(1:3);
     w = vec(4:6);
     mat = [

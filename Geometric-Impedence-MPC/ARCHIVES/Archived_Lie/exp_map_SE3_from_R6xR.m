@@ -1,11 +1,11 @@
 
 function mat_SE3 = exp_map_SE3_from_R6xR(xi, t_R)
-    [n,k] = size(xi);
-    assert(n == 6, "[ERR] ad_se3_: xi \in se(3) coordinates vector R^{6} (v,w)!");
+    validate.if_dimension(" xi \in se(3) coordinates", xi, [6,1]);
     v_R3 = xi(1:3);
     w_R3 = xi(4:6);
-    assert(det(w_R3) == 1, "[ERR] w_R3 should be a unit vector!");
-    assert(0 < t_R && t_R < 2*pi, "[ERR] t_R should be in [0, 2*pi]!"); % --> A(.) non-singular
+    
+    validate.if_unitVector("w_R3", w_R3);
+    validate.if_inRangeStrict("t_R", t_R, [0, 2*pi]); % --> A(.) non-singular
     
     % pre-compute const, (minimize division operations):
     

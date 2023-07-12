@@ -1,7 +1,6 @@
 function mat = hat_so3(vec)
     % input: vec \in so(3) coordinates vector R^{3}
-    [ n, k ] = size(vec);
-    assert(n == 3, "[ERR] hat_so3: vec must be  R^{3} vectors!");
+    validate.if_dimension("vec", vec, [3,1]);
     w = vec;
     mat = [
                 0, -w(3),  w(2); ...

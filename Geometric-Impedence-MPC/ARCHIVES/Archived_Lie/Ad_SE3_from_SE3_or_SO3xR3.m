@@ -16,8 +16,8 @@ function mat = Ad_SE3_from_SE3_or_SO3xR3(arg1,arg2)
     end
     
     mat = [
-        R(:,:), zeros(3); ...
-        hat_so3(p) * R(:,:), R(:,:)
+        R(:,:), hat_so3(p) * R(:,:); ...
+        zeros(3), R(:,:)
     ];
     % return: mat \in R^{6x6xk}
 end
