@@ -1,4 +1,4 @@
-function mat = hat_so3(vec)
+function mat = batch_hat_so3(vec)
     % input: vec \in so(3) coordinates vector R^{3xk}
     [n, m] = size(vec);
     assert(n == 3, "[ERR] hat: vec must be  R^{3xk} vectors!");

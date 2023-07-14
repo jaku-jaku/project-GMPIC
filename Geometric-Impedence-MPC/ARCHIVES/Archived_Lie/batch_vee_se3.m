@@ -1,4 +1,4 @@
-function vec = vee_se3(mat)
+function vec = batch_vee_se3(mat)
     % input: mat \in se(3) \subset R^{4x4xk} 
     [n, m, k] = size(mat);
     assert(prod([n,m] == [4,4]), "[ERR] vee: mat must be R^{4x4xk} matrices!");
