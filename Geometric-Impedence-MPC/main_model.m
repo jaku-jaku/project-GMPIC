@@ -12,7 +12,7 @@ helper.logtitle("Initialize")
 SAVE_CONSOLE = false;
 CLEAR_OUTPUT = true;
 CLOSE_WINDOW = true; % pre-closing
-AUTO_CLOSE   = true;
+AUTO_CLOSE   = false;
 
 helper.createFolder("output/test", false);
 helper.setLogLevel("all")
@@ -24,14 +24,14 @@ DIR = helper.declareSection("test", "init_wam", SAVE_CONSOLE, CLEAR_OUTPUT, CLOS
 % --- 
 
 % [ i-->i+1 Links ]
-N_jnts = length(common.RELATIVE_Axes);
+N_jnts = length(common.WAM)-1;
 for i = 1:N_jnts
     helper.loginfo(sprintf("> Indexing Links @ %d-->%d",i-1,i));
     % - obtain relative params:
-    q_R3_i = common.RELATIVE_Links(i,:).';
-    w_R3_i = common.RELATIVE_Axes(i,:).';
-    t_R_i  = common.RELATIVE_Axes_Rotations(i).';
-    
+    q_R3_i = common.WAM(i).output_frame_link';
+    w_R3_i = common.WAM(i).output_frame_axis';
+    t_R_i  = common.WAM(i).output_frame_axis_rotations;
+
     % -> (axis,angle) to SO3:
     R_SO3_i = Lie.rodrigues_SO3_from_unit_R3xR(w_R3_i, t_R_i);
 
@@ -101,7 +101,7 @@ for i=1:N_jnts
     utils.plot_link( ...
         temp_mat_w_{i}, ...
         G_SE3_0_{i}, ...
-        common.RELATIVE_Links(i+1,:).', ...
+        common.WAM(i+1).output_frame_link', ...
         sprintf('%d',i-1),'k',ax_1_1);
 end
 grid on;

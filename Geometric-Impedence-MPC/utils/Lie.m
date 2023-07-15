@@ -94,8 +94,7 @@ classdef Lie
             % < output: mat \in SO(3) rotation matrix R^{3x3}
             validate.if_dimension("w_R3", w_R3, [3,1]);
             validate.if_unitVector("w_R3", w_R3);
-            % validate.if_inRangeStrict("t_R", t_R, [0, 2*pi]); % --> A(.) non-singular
-        
+
             % pre-compute const, (minimize division operations)
             exp_SO3 = eye(3);
             hat_w_so3 = Lie.hat_so3_from_R3(w_R3);
@@ -113,19 +112,20 @@ classdef Lie
             w_R3 = xi_vw(4:6);
             
             validate.if_unitVector("w_R3", w_R3);
-            % validate.if_inRangeStrict("t_R", t_R, [0, 2*pi]); % --> A(.) non-singular
             
             % pre-compute const, (minimize division operations):
-            
             if norm(w_R3) == 0
                 exp_SE3 = [eye(3), v_R3 * t_R; zeros(1,3), 1]; % (Murray 2.32)
             else
                 % [ rodrigues' formula std ]:
                 R = Lie.rodrigues_SO3_from_unit_R3xR(w_R3, t_R);
-            
+                
                 % [ transplation ]:
                 hat_w_so3 = Lie.hat_so3_from_R3(w_R3);
-                p = ((eye(3) - R) * hat_w_so3 + w_R3 * w_R3.' * t_R) * v_R3; % (Murray 2.36)
+                % validate.if_inRangeStrict("t_R", t_R, (0, 2*pi)); 
+                % --> A_mat(.) non-singular for all (0,2*pi)
+                A_mat = ((eye(3) - R) * hat_w_so3 + w_R3 * w_R3.' * t_R); % [Murray 2.38]
+                p = A_mat * v_R3; % (Murray 2.36)
                 
                 % [ OUTPUT ]:
                 exp_SE3 = [R, p; zeros(1,3), 1];
