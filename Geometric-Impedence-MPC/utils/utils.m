@@ -13,6 +13,7 @@ classdef utils
             % loc_of_next_link_frame - This gives us just the location of where the
             % next successive link starts from the origin of the current link, w.r.t
             % the current link
+            % TODO: revise this function to have link tip frame plotted instead
             origin = [0;0;0;1]; % w.r.t the current link
             end_pos = [loc_of_next_link_frame;1];
             if(link_name=="W3")

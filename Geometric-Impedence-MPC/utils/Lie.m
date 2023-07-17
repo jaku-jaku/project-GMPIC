@@ -145,15 +145,40 @@ classdef Lie
             ];
             % return: mat \in R^{6x6}
         end
+        function mat = inv_Ad_SE3_from_SE3(mat_SE3)
+            % input: mat_SE3 \in SE(3) \subset R^{4x4} 
+            R_SO3 = mat_SE3(1:3,1:3);
+            p_R3 = mat_SE3(1:3,4);
+            validate.if_SO("{R | mat_SE3(R,p)}", R_SO3);
+            validate.if_dimension("mat_SE3", mat_SE3, [4,4]);
+            hat_p = Lie.hat_so3_from_R3(p_R3);
+            mat = [
+                R_SO3(:,:)', -R_SO3(:,:)' * hat_p; ...
+                zeros(3), R_SO3(:,:)'
+            ];
+            % return: mat \in R^{6x6}
+        end
         function mat = Ad_SE3_from_SO3xR3(R_SO3, p_R3)
             % input: mat_SE3 \in SE(3) \subset R^{4x4} 
             validate.if_SO("{R | mat_SE3(R,p)}", R_SO3);
             validate.if_dimension("R_SO3", R_SO3, [3,3]);
-            validate.if_dimension("p_R3", p_R3, [3]);
+            validate.if_dimension("p_R3", p_R3, [3,1]);
             hat_p = Lie.hat_so3_from_R3(p_R3);
             mat = [
                 R_SO3(:,:), hat_p * R_SO3(:,:); ...
                 zeros(3), R_SO3(:,:)
+            ];
+            % return: mat \in R^{6x6}
+        end
+        function mat = inv_Ad_SE3_from_SO3xR3(R_SO3, p_R3)
+            % input: mat_SE3 \in SE(3) \subset R^{4x4} 
+            validate.if_SO("{R | mat_SE3(R,p)}", R_SO3);
+            validate.if_dimension("R_SO3", R_SO3, [3,3]);
+            validate.if_dimension("p_R3", p_R3, [3,1]);
+            hat_p = Lie.hat_so3_from_R3(p_R3);
+            mat = [
+                R_SO3(:,:)', -R_SO3(:,:)' * hat_p; ...
+                zeros(3), R_SO3(:,:)'
             ];
             % return: mat \in R^{6x6}
         end
@@ -165,8 +190,8 @@ classdef Lie
             hat_w = Lie.hat_so3_from_R3(w);
             hat_v = Lie.hat_so3_from_R3(v);
             mat = [
-                hat_w(:,:), zeros(3); ...
-                hat_v(:,:), hat_w(:,:)
+                hat_w(:,:), hat_v(:,:); ...
+                zeros(3), hat_w(:,:)
             ];
         end
     end
