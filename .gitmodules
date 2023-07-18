@@ -1,3 +1,6 @@
 [submodule "demo-cart-manipulation"]
 	path = demo-cart-manipulation
 	url = git@github.com:UW-Advanced-Robotics-Lab/demo-cart-manipulation.git
+[submodule "ModernRobotics"]
+	path = ModernRobotics
+	url = https://github.com/NxRLab/ModernRobotics.git
