@@ -19,7 +19,7 @@ helper.setLogLevel("all")
 validate.set_validatorLevel("all")
 % --- 
 helper.endSection(AUTO_CLOSE);
-%% Tests) ===== ===== ===== ===== ===== ===== =====:
+%% Initial g(0)) ===== ===== ===== ===== ===== ===== =====:
 DIR = helper.declareSection("test", "init_wam", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
 % --- 
 
@@ -78,48 +78,12 @@ G_SE3_summit_wam = [R_SO3_summit, common.dP_SUMMIT_WAM.'; zeros(1,3), 1]; % rela
 
 % special position, without joint limits applied:
 JOINT_ANGLE = zeros(N_jnts);
+[G_SE3_wam_spatial_, J_spatial_] = OpenChain.compute_Spatial(G_SE3_summit_wam, xi_R6_0_, JOINT_ANGLE);
 
-% Compute Spatial (Forward):
-J_spatial = [];
-G_SE3_wam_spatial_ = {};
-G_prev = G_SE3_summit_wam;
-for i=1:N_jnts
-    theta = JOINT_ANGLE(i);
-    % -> compute transformation from twist coordinates and angles applied:
-    % |---- (more general):
-    G_i_t_{i} = RBT.screw_SE3_from_xi_theta(xi_R6_0_{i}, theta);
-    % |---- (more efficient):
-    % G_i_t_{i} = RBT.screw_SE3_from_axis_point_theta(w_R3_0_{i}, q_R3_0_{i}, theta);
-    
-    % -> cumulate transformation:
-    G_SE3_wam_spatial_i = G_prev * G_i_t_{i};
-    G_prev = G_SE3_wam_spatial_i;
-    % output:
-    G_SE3_wam_spatial_{i} = G_SE3_wam_spatial_i;
+% body frame:
+[G_SE3_wam_body_, J_body_] = OpenChain.compute_Body(G_SE3_0_{N_jnts}, xi_R6_0_, JOINT_ANGLE);
 
-    % -> compute jacobian:
-    J_spatial_i = Lie.Ad_SE3_from_SE3(G_prev) * xi_R6_0_{i};
-    % output:
-    J_spatial = [J_spatial, J_spatial_i];
-end
 
-%% Compute Body (Backward):
-J_body = [];
-G_SE3_wam_body_ = {};
-G_prev = G_SE3_0_{N_jnts};
-for i=1:N_jnts
-    G_b_t_{i} = RBT.screw_SE3_from_xi_theta(xi_R6_0_{N_jnts-i+1}, theta);
-    % -> cumulate transformation:
-    G_SE3_wam_body_i = G_prev * G_b_t_{i};
-    G_prev = G_SE3_wam_body_i;
-    % output:
-    G_SE3_wam_body_{i} = G_SE3_wam_body_i;
-    
-    % -> compute jacobian:
-    J_body_i = Lie.inv_Ad_SE3_from_SE3(G_prev) * xi_R6_0_{N_jnts-i+1};
-    % output:
-    J_body = [J_body_i, J_body];
-end
 
 
 %% [ PLOT ]:
