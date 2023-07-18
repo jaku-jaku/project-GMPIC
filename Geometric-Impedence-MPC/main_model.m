@@ -76,13 +76,19 @@ R_SO3_summit = Lie.rodrigues_SO3_from_unit_R3xR([0;0;1], 0);
 % (homogeneous):
 G_SE3_summit_wam = [R_SO3_summit, common.dP_SUMMIT_WAM.'; zeros(1,3), 1]; % relative RBT
 
-% special position, without joint limits applied:
-JOINT_ANGLE = zeros(N_jnts);
-[G_SE3_wam_spatial_, J_spatial_] = OpenChain.compute_Spatial(G_SE3_summit_wam, xi_R6_0_, JOINT_ANGLE);
+% Given Angles:
+JOINT_ANGLE = ones(1,N_jnts) * pi/4;
+% compute FK:
+exp_xi_theta_in_SE3_ = OpenChain.batch_screw_SE3_from_twist_angle_R6xR(xi_R6_0_, JOINT_ANGLE);
 
-% body frame:
-[G_SE3_wam_body_, J_body_] = OpenChain.compute_Body(G_SE3_0_{N_jnts}, xi_R6_0_, JOINT_ANGLE);
+[G_SE3_wam_spatial_0_, J_spatial_] = OpenChain.compute_Spatial_from_SE3(G_SE3_summit_wam, xi_R6_0_, exp_xi_theta_in_SE3_);
+[G_SE3_wam_body_0_, J_body_] = OpenChain.compute_Body_from_SE3(G_SE3_0_{N_jnts}, xi_R6_0_, exp_xi_theta_in_SE3_);
 
+% [G_SE3_wam_spatial_, J_spatial_] = OpenChain.compute_Spatial(G_SE3_summit_wam, xi_R6_0_, JOINT_ANGLE);
+% [G_SE3_wam_body_, J_body_] = OpenChain.compute_Body(G_SE3_0_{N_jnts}, xi_R6_0_, JOINT_ANGLE);
+
+
+%% Compute Moments and Inertia:
 
 
 
@@ -106,7 +112,7 @@ utils.plot_link( ...
 for i=1:N_jnts
     % -> plot:
     utils.plot_link( ...
-        G_SE3_wam_spatial_{i}, ...
+        G_SE3_wam_spatial_0_{i+1}, ...
         G_SE3_0_{i}, ...
         common.WAM(i+1).tail_frame_transformation.q', ...
         common.WAM(i+1).base_frame, ...
