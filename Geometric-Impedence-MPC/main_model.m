@@ -75,7 +75,10 @@ for i = 1:N_jnts
     % - adjoint (0)
     % Ad_inv_g0_s_l_{i} = Lie.Ad_SE3_from_SE3(RBT.inverse_SE3(G_SE3_0_i));
     Ad_inv_g0_s_l_{i} = Lie.inv_Ad_SE3_from_SE3(G_SE3_0_i); % equivalent
-    M_R6x6_spatial_{i} = Ad_inv_g0_s_l_{i}' * M_R6x6_{i} * Ad_inv_g0_s_l_{i}; % [4.28, Murray]
+
+    % - Inertia of the ith link reflected into the base spatial frame:
+    % [4.28, Murray]
+    M_R6x6_spatial_{i} = Ad_inv_g0_s_l_{i}' * M_R6x6_{i} * Ad_inv_g0_s_l_{i}; 
     
     % (cache):
     w_R3_0_{i} = w_R3_0_i;
