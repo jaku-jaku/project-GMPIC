@@ -194,5 +194,20 @@ classdef Lie
                 zeros(3), hat_w(:,:)
             ];
         end
+        function mat = prod_SE3_from_SE3xk(mats)
+            mat = mats{1};
+            for i = 2:length(mats)
+                mat = mat * mats{i};
+            end
+        end
+        function vec = lie_bracket_from_R6xR6(xi_1, xi_2) 
+            % strictly [xi_1, xi_2] = -[xi_2, xi_1]
+            xi_1_hat = Lie.hat_se3_from_R6(xi_1);
+            xi_2_hat = Lie.hat_se3_from_R6(xi_2);
+            vec = Lie.lie_bracket_from_se3xse3(xi_1_hat, xi_2_hat);
+        end
+        function vec = lie_bracket_from_se3xse3(xi_1_hat, xi_2_hat) 
+            vec = Lie.vee_R6_from_se3(xi_1_hat * xi_2_hat - xi_2_hat * xi_1_hat);
+        end
     end
 end
