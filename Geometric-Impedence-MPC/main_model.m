@@ -23,9 +23,23 @@ helper.endSection(AUTO_CLOSE);
 DIR = helper.declareSection("test", "init_wam", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
 % --- 
 
-% [ i-->i+1 Links ]
-N_jnts = length(common.WAM)-1;
-for i = 1:N_jnts
+
+% Summit ---> WAM base frame:
+R_SO3_summit = Lie.rodrigues_SO3_from_unit_R3xR([0;0;1], 0); % -> (axis,angle) to SO3:
+G_SE3_summit_wam = [R_SO3_summit, common.dP_SUMMIT_WAM.'; zeros(1,3), 1]; % relative RBT
+
+% define base spatial frame for WAM:
+WAM_Spatial_0 = G_SE3_summit_wam;
+% WAM_Spatial_0 = eye(4);
+
+% [ i-1-->i: i's Links with i's output frame]
+N_links = length(common.WAM);
+N_jnts = N_links; % we cosider (i-1)===>(i)'s joints/frames
+valid_jnts_filter = eye(N_jnts); % <--- assume all joints active by default
+
+G_SE3_0_{1} = WAM_Spatial_0; % <--- initial wam base frame
+
+for i = 1:N_links
     helper.loginfo(sprintf("> Indexing Links @ %d-->%d",i-1,i));
     % - obtain relative params:
     q_R3_i = common.WAM(i).tail_frame_transformation.q';
@@ -33,22 +47,26 @@ for i = 1:N_jnts
     t_R_i  = common.WAM(i).tail_frame_transformation.t;
     w_joint_axis_i = common.WAM(i).tail_frame_revolute_joint.axis';
 
+    joint_name_i = common.WAM(i).tail_frame_revolute_joint.name;
+    joint_limits_{i} = common.WAM(i).tail_frame_revolute_joint.limits;
+
+    % - store joint info:
+    if joint_name_i == "NotActive"
+        valid_jnts_filter(i,i) = 0; % invalid angle inputs
+    end
+
     % -> (axis,angle) to SO3:
     R_SO3_i = Lie.rodrigues_SO3_from_unit_R3xR(w_R3_i, t_R_i);
 
     JOINT_CAD_AXIS = [0;0;1]; % Along link-1 z-axis
     % - on SE3 operation:
-    % - grab local frame:
-    q_R4_i = [q_R3_i; 1]; % relative displacement
-    G_SE3_i = [R_SO3_i, q_R3_i; zeros(1,3), 1]; % relative RBT
-    % - convert to base frame:
-    if i > 1
-        q_R4_0_i = G_SE3_0_{i-1} * q_R4_i;
-        G_SE3_0_i = G_SE3_0_{i-1} * G_SE3_i;
-    else
-        q_R4_0_i = eye(4) * q_R4_i;
-        G_SE3_0_i = eye(4) * G_SE3_i;
-    end
+    % - grab link tail frame transformation in local frame:
+    q_R4_{i} = [q_R3_i; 1]; % relative displacement
+    G_SE3_{i} = [R_SO3_i, q_R3_i; zeros(1,3), 1]; % relative RBT
+    % - convert to link base frame:
+    q_R4_0_i = G_SE3_0_{i} * q_R4_{i};
+    G_SE3_0_i = G_SE3_0_{i} * G_SE3_{i};
+
     % - obtain global form of local z-axis
     w_R3_0_i = G_SE3_0_i(1:3,1:3) * w_joint_axis_i; 
     
@@ -84,7 +102,7 @@ for i = 1:N_jnts
     w_R3_0_{i} = w_R3_0_i;
     q_R3_0_{i} = q_R4_0_i(1:3);
     xi_R6_0_{i} = xi_R6_0_i;
-    G_SE3_0_{i} = G_SE3_0_i; % transformation
+    G_SE3_0_{i+1} = G_SE3_0_i; % transformation
     helper.logdebug(helper.a2str("G_SE3_0_i",G_SE3_0_i));
 end
 
@@ -93,13 +111,9 @@ end
 %% Compute Kinematics) ===== ===== ===== ===== ===== ===== =====:
 DIR = helper.declareSection("test", "compute", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
 % --- 
-% -> (axis,angle) to SO3:
-R_SO3_summit = Lie.rodrigues_SO3_from_unit_R3xR([0;0;1], 0);
-% (homogeneous):
-G_SE3_summit_wam = [R_SO3_summit, common.dP_SUMMIT_WAM.'; zeros(1,3), 1]; % relative RBT
 
 % Given Angles:
-JOINT_ANGLE = ones(1,N_jnts) * pi/4;
+JOINT_ANGLE = ones(1,N_jnts) * pi/4 * valid_jnts_filter;
 % compute FK:
 exp_xi_theta_in_SE3_ = OpenChain.batch_screw_SE3_from_twist_angle_R6xR(xi_R6_0_, JOINT_ANGLE);
 
@@ -107,8 +121,9 @@ exp_xi_theta_in_SE3_ = OpenChain.batch_screw_SE3_from_twist_angle_R6xR(xi_R6_0_,
 % spacial jacobian:
 % body jacobian:
 % --- 
-[G_SE3_wam_spatial_0_, J_spatial_] = OpenChain.compute_Spatial_from_SE3(G_SE3_summit_wam, xi_R6_0_, exp_xi_theta_in_SE3_);
-[G_SE3_wam_body_0_, J_body_] = OpenChain.compute_Body_from_SE3(G_SE3_0_{N_jnts}, xi_R6_0_, exp_xi_theta_in_SE3_);
+SUMMIT_POSE_SE3 = eye(4) * common.SUMMIT_INIT_POSE; % summit stationary --> WAM stationary
+[G_SE3_wam_spatial_0_, J_spatial_] = OpenChain.compute_Spatial_from_SE3(SUMMIT_POSE_SE3, xi_R6_0_, exp_xi_theta_in_SE3_);
+[G_SE3_wam_body_0_, J_body_] = OpenChain.compute_Body_from_SE3(G_SE3_0_{end}, xi_R6_0_, exp_xi_theta_in_SE3_);
 
 % [G_SE3_wam_spatial_, J_spatial_] = OpenChain.compute_Spatial(G_SE3_summit_wam, xi_R6_0_, JOINT_ANGLE);
 % [G_SE3_wam_body_, J_body_] = OpenChain.compute_Body(G_SE3_0_{N_jnts}, xi_R6_0_, JOINT_ANGLE);
@@ -197,9 +212,6 @@ for i=1:N_jnts
     end
 end
 
-% A = blkdiag(xi_R6_0_{:});
-% G = blkdiag(M_R6x6_spatial_{:});
-% 
 
 
 
@@ -211,25 +223,33 @@ helper.newFigure(-1);
 ax_1_1 = nexttile();
 
 % plot summit:
-utils.plot_Summit(common.SUMMIT_INIT_POSE,common.SUMMIT_INIT_POSE,'S',ax_1_1);
+utils.plot_Summit(SUMMIT_POSE_SE3,SUMMIT_POSE_SE3,'S',ax_1_1);
 
-% plot wam base link:
-utils.plot_link( ...
-        G_SE3_summit_wam, ...
-        eye(4), ...
-        common.WAM(1).tail_frame_transformation.q', ...
-        common.WAM(1).base_frame, ...
-        'k', ax_1_1);
-
-% plot rest links:
-for i=1:N_jnts
+% plot links:
+for i=1:N_links
     % -> plot:
-    utils.plot_link( ...
-        G_SE3_wam_spatial_0_{i+1}, ...
-        G_SE3_0_{i}, ...
-        common.WAM(i+1).tail_frame_transformation.q', ...
-        common.WAM(i+1).base_frame, ...
-        'k', ax_1_1);
+    if i == N_links 
+        % plot the end-effector frame as well:
+        utils.plot_link( ...
+            G_SE3_0_{i}, ...    
+            G_SE3_0_{i+1}, ...
+            G_SE3_wam_spatial_0_{i}, ...
+            G_SE3_wam_spatial_0_{i+1}, ...
+            common.WAM(i).tail_frame_transformation.q', ...
+            common.WAM(i).base_frame, ...
+            common.WAM(i).tail_frame, ...
+            'k', ax_1_1);
+    else
+        utils.plot_link( ...
+            G_SE3_0_{i}, ...    
+            [], ...
+            G_SE3_wam_spatial_0_{i}, ...
+            [], ...
+            common.WAM(i).tail_frame_transformation.q', ...
+            common.WAM(i).base_frame, ...
+            [], ...
+            'k', ax_1_1);
+    end
 end
 
 grid on;
