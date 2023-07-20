@@ -91,5 +91,16 @@ classdef RBT
                 zeros(1,3), 1
             ];
         end
+        function R_SO3 = project_to_SO3_from_nearSO3(mat_near_SO3)
+            [U, S, V] = svd(mat_near_SO3);
+            R = U * V';
+            if det(R) < 0
+                % In this case the result may be far from mat.
+                R_SO3 = [R(:, 1: 2), -R(:, 3)];
+            end
+        end
+        function mat_SE3 = project_to_SE3_from_nearSE3(mat_near_SE3)
+            mat_SE3 = [ RBT.project_to_SO3_from_nearSO3(mat_near_SE3(1: 3, 1: 3)), mat_near_SE3(1: 3, 4); zeros(1, 3), 1];
+        end
     end
 end

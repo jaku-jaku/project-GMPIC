@@ -16,7 +16,7 @@ AUTO_CLOSE   = false;
 
 helper.createFolder("output/test", false);
 helper.setLogLevel("all")
-validate.set_validatorLevel("none")
+validate.set_validatorLevel("all")
 % --- 
 helper.endSection(AUTO_CLOSE);
 %% Initial g(0)) ===== ===== ===== ===== ===== ===== =====:
@@ -113,7 +113,8 @@ DIR = helper.declareSection("test", "compute", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE
 % --- 
 
 % Given Angles:
-JOINT_ANGLE = ones(1,N_jnts) * pi/4 * valid_jnts_filter;
+% JOINT_ANGLE = ones(1,N_jnts) * pi/4 * valid_jnts_filter;
+JOINT_ANGLE =zeros(1,N_jnts);
 % compute FK:
 exp_xi_theta_in_SE3_ = OpenChain.batch_screw_SE3_from_twist_angle_R6xR(xi_R6_0_, JOINT_ANGLE);
 
@@ -129,88 +130,47 @@ SUMMIT_POSE_SE3 = eye(4) * common.SUMMIT_INIT_POSE; % summit stationary --> WAM 
 % [G_SE3_wam_body_, J_body_] = OpenChain.compute_Body(G_SE3_0_{N_jnts}, xi_R6_0_, JOINT_ANGLE);
 
 %% --- 
-% Adjoint Transformation:
-% - depends on current configuration of the manipulator
-% --- 
-A_ij = {};
-for i=1:N_jnts
-    for j=1:N_jnts
-        % disp([i,j])
-        if i>j
-            G_ji = Lie.prod_SE3_from_SE3xk({exp_xi_theta_in_SE3_{j+1:i}});
-            A_ij{i,j} = Lie.inv_Ad_SE3_from_SE3(G_ji);
-        elseif i==j
-            A_ij{i,j} = eye(6);
-        else
-            A_ij{i,j} = 0;
-        end
-    end
-end
 
-%% --- 
-% Compute Moments and Inertia:
-% --- 
-% dtheta = symmatrix('dt', [N_jnts,1])
-dtheta = ones(N_jnts,1);
-dtheta(end) = 0;
+%
+% A = blkdiag(xi_R6_0_{:});
+% G = blkdiag(M_R6x6_spatial_{:});
+% 
+% Takes thetalist: n-vector of joint variables,
+%       dthetalist: n-vector of joint rates,
+%       ddthetalist: n-vector of joint accelerations,
+%       g: Gravity vector g,
+%       Ftip: Spatial force applied by the end-effector expressed in frame 
+%             {n+1},
+%       Mlist: List of link frames {i} relative to {i-1} at the home 
+%              position,
+%       Glist: Spatial inertia matrices Gi of the links,
+%       Slist: Screw axes Si of the joints in a space frame, in the format
+%              of a matrix with the screw axes as the columns.
+% Returns taulist: The n-vector of required joint forces/torques.
+% This function uses forward-backward Newton-Euler iterations to solve the 
+% equation:
+% taulist = Mlist(thetalist) * ddthetalist + c(thetalist, dthetalist) ...
+%           + g(thetalist) + Jtr(thetalist) * Ftip
+% Example Input (3 Link Robot):
+theta = zeros(N_jnts);
+d_theta = dtheta;
+dd_theta = zeros(N_jnts);
 
-M_ij_ = [];
-C_ij_ = [];
-for i=1:N_jnts
-    for j=1:N_jnts
-        M_ij = 0;
-        for l=max(i,j):N_jnts
-            % [Murray 4.29] Inertia Matrix:
-            M_ij = M_ij ...
-                + xi_R6_0_{i}' * A_ij{l,i}' * M_R6x6_spatial_{l} * A_ij{l,j} * xi_R6_0_{j};
-        end
-        M_ij_(i,j) = M_ij;
-        % M_ij_{i,j} = M_ij;
-        
-        C_ij = 0;
-        for k=1:N_jnts
-            % [Murray 4.29] Coriolis Matrix:
-            dM_dt = 0;
-            if k == 1
-                A1 = 0;
-                A2 = 0;
-            else
-                A1 = A_ij{k-1,i};
-                A2 = A_ij{k-1,j};
-            end
-            
-            % [Murray 4.30] Jacobian of Moments:
-            A1_xi_k = Lie.lie_bracket_from_R6xR6( A1 * xi_R6_0_{i}, xi_R6_0_{k} )';
-            A2_xi_k = Lie.lie_bracket_from_R6xR6( A2 * xi_R6_0_{j}, xi_R6_0_{k} )';
-            
-            A1_xi_j = Lie.lie_bracket_from_R6xR6( A1 * xi_R6_0_{i}, xi_R6_0_{j} )';
-            A2_xi_j = Lie.lie_bracket_from_R6xR6( A2 * xi_R6_0_{k}, xi_R6_0_{j} )';
-            
-            A1_xi_i = Lie.lie_bracket_from_R6xR6( A1 * xi_R6_0_{k}, xi_R6_0_{i} )';
-            A2_xi_i = Lie.lie_bracket_from_R6xR6( A2 * xi_R6_0_{j}, xi_R6_0_{i} )';
+g = [0; 0; 0];
+Ftip = [0; 0; 0; 0; 0; 0]; % > Spatial force applied by the end-effector expressed in frame {n+1}
+Mlist = cat(3, G_SE3_{:});
+Glist = cat(3, M_R6x6_{:});
 
-            dMij_dtk = 0;
-            dMik_dtj = 0;
-            dMkj_dti = 0;
-            for l=max(i,j):N_jnts
-                dMij_dtk = dMij_dtk ...
-                    + A1_xi_k' * A_ij{l,k}' * M_R6x6_spatial_{l} * A_ij{l,j} * xi_R6_0_{j} ...
-                    + xi_R6_0_{i}' * A_ij{l,i}' * M_R6x6_spatial_{l} * A_ij{l,k} * A2_xi_k;
-                
-                dMik_dtj = dMik_dtj ...
-                    + A1_xi_j' * A_ij{l,j}' * M_R6x6_spatial_{l} * A_ij{l,k} * xi_R6_0_{k} ...
-                    + xi_R6_0_{i}' * A_ij{l,i}' * M_R6x6_spatial_{l} * A_ij{l,j} * A2_xi_j;
+Slist = cat(2, xi_R6_0_{:});
 
-                dMkj_dti = dMkj_dti ...
-                    + A1_xi_i' * A_ij{l,i}' * M_R6x6_spatial_{l} * A_ij{l,j} * xi_R6_0_{j} ...
-                    + xi_R6_0_{k}' * A_ij{l,k}' * M_R6x6_spatial_{l} * A_ij{l,i} * A2_xi_i;
-            end
-            C_ij = C_ij + ( (dMij_dtk + dMik_dtj + dMkj_dti) * dtheta(k) );
-        end
-        % C_ij_{i,j} = 0.5 * C_ij; % cache as struct for symbolic
-        C_ij_(i,j) = 0.5 * C_ij; % cache as matrix for numerical
-    end
-end
+
+Js = OpenChain.space_jacobian(Slist, theta)
+
+% Tau = OpenChain.inverse_dynamics(theta, d_theta, dd_theta, g, Ftip, Mlist, Glist, Slist);
+% c = OpenChain.vel_qualdratic_force(theta, d_theta, Mlist, Glist, Slist);
+% M = OpenChain.mass_matrix(theta, Mlist, Glist, Slist)
+
+% Jb = OpenChain.body_jacobian(Blist, theta)
 
 
 
