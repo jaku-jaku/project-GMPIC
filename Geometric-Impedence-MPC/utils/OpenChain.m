@@ -345,5 +345,31 @@ classdef OpenChain
                         - OpenChain.force_at_EE(theta, Ftip, Mlist, Glist, Slist) ...
                     );
         end
+        function traj = trajectory_joint(thetaS, thetaE, Tf, N, method)
+            timegap = Tf / (N - 1);
+            traj = zeros(size(thetaS, 1), N);
+            for i = 1: N
+                if method == 3
+                    s = CubicTimeScaling(Tf, timegap * (i - 1));
+                else
+                    s = QuinticTimeScaling(Tf, timegap * (i - 1));
+                end
+                traj(:, i) = thetaS + s * (thetaE - thetaS);
+            end
+            traj = traj';
+        end
+        function taumat = trajectory_ID(theta, d_theta, dd_theta, g, Ftip, Mlist, Glist, Slist)
+            thetamat = theta';
+            dthetamat = d_theta';
+            ddthetamat = dd_theta';
+            Ftipmat = Ftip';
+            taumat = thetamat;
+            for i = 1: size(thetamat, 2)
+            taumat(:, i) ...
+            = InverseDynamics(thetamat(:, i), dthetamat(:, i), ddthetamat(:, i), ...
+                                g, Ftipmat(:, i), Mlist, Glist, Slist);
+            end
+            taumat = taumat';
+        end
     end
 end
