@@ -2,25 +2,17 @@ classdef RBT
     methods(Static)
     % [SE3]:
         function mat_inv_SE3 = inverse_SE3(mat_SE3)
-            [R_SO3, p_R3] = RBT.SO3xR3_from_SE3(mat_SE3);
-            mat_inv_SE3 = RBT.inverse_SO3xR3(R_SO3, p_R3);
+            mat_inv_SE3 = Lie.inverse_SE3(mat_SE3);
         end
         function mat_SE3 = SE3_from_SO3xR3(R_SO3, p_R3)
-            mat_SE3 = [
-                R_SO3, p_R3;
-                zeros(1, 3), 1
-            ];
+            mat_SE3 = Lie.SE3_from_SO3xR3(R_SO3, p_R3);
         end
     % [SO3 x R3]:
         function mat_inv_SE3 = inverse_SO3xR3(R_SO3, p_R3)
-            mat_inv_SE3 = [
-                R_SO3.', -R_SO3.' * p_R3;
-                zeros(1, 3), 1
-            ];
+            mat_inv_SE3 = Lie.inverse_SO3xR3(R_SO3, p_R3);
         end
         function [R_SO3, p_R3] = SO3xR3_from_SE3(mat_SE3)
-            R_SO3 = mat_SE3(1:3, 1:3);
-            p_R3 = mat_SE3(1:3, 4);
+            [R_SO3, p_R3] = Lie.SO3xR3_from_SE3(mat_SE3);
         end
     % [Twist Coordinate]:
         function xi = twist_R6_from_axis_point(w_R3, q_R3)
@@ -91,6 +83,8 @@ classdef RBT
                 zeros(1,3), 1
             ];
         end
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% Modern Robotics:
         function R_SO3 = project_to_SO3_from_nearSO3(mat_near_SO3)
             [U, S, V] = svd(mat_near_SO3);
             R = U * V';

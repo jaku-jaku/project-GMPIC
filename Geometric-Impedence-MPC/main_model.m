@@ -153,7 +153,7 @@ SUMMIT_POSE_SE3 = eye(4) * common.SUMMIT_INIT_POSE; % summit stationary --> WAM 
 %           + g(thetalist) + Jtr(thetalist) * Ftip
 % Example Input (3 Link Robot):
 theta = zeros(N_jnts);
-d_theta = dtheta;
+d_theta = zeros(N_jnts);
 dd_theta = zeros(N_jnts);
 
 g = [0; 0; 0];
@@ -164,13 +164,15 @@ Glist = cat(3, M_R6x6_{:});
 Slist = cat(2, xi_R6_0_{:});
 
 
-Js = OpenChain.space_jacobian(Slist, theta)
+Js = OpenChain.spatial_jacobian(Slist, theta)
 
 % Tau = OpenChain.inverse_dynamics(theta, d_theta, dd_theta, g, Ftip, Mlist, Glist, Slist);
 % c = OpenChain.vel_qualdratic_force(theta, d_theta, Mlist, Glist, Slist);
 % M = OpenChain.mass_matrix(theta, Mlist, Glist, Slist)
 
 % Jb = OpenChain.body_jacobian(Blist, theta)
+
+%% ---
 
 
 

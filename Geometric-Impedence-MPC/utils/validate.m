@@ -61,7 +61,7 @@ classdef validate
                 det_R = det(mat_R);
                 n = length(mat_R);
                 msg = validate.log(var_name, ...
-                    sprintf("in SO{%d}, with |R|=%f != 1", n, det_R));
+                    sprintf("in SO{%d}, with |R|=%f == 1", n, det_R));
                 assert(validate.compare_float_equal(det_R,1), msg);
             end
         end

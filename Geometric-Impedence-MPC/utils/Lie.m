@@ -43,6 +43,28 @@ classdef Lie
             ];
             % return: mat \in R^{3x3} 
         end
+    % [SE3]:
+        function mat_inv_SE3 = inverse_SE3(mat_SE3)
+            [R_SO3, p_R3] = Lie.SO3xR3_from_SE3(mat_SE3);
+            mat_inv_SE3 = Lie.inverse_SO3xR3(R_SO3, p_R3);
+        end
+        function mat_SE3 = SE3_from_SO3xR3(R_SO3, p_R3)
+            mat_SE3 = [
+                R_SO3, p_R3;
+                zeros(1, 3), 1
+            ];
+        end
+    % [SO3 x R3]:
+        function mat_inv_SE3 = inverse_SO3xR3(R_SO3, p_R3)
+            mat_inv_SE3 = [
+                R_SO3.', -R_SO3.' * p_R3;
+                zeros(1, 3), 1
+            ];
+        end
+        function [R_SO3, p_R3] = SO3xR3_from_SE3(mat_SE3)
+            R_SO3 = mat_SE3(1:3, 1:3);
+            p_R3 = mat_SE3(1:3, 4);
+        end
     % [Rodrigue]
         function exp_SO3 = rodrigues_SO3_from_R3(w_R3)
             % > input: w_R3 \in so(3) coordinate \subset R^{3} vector
@@ -171,27 +193,27 @@ classdef Lie
             if acosinput >= 1
                 mat_so3 = zeros(3);
             elseif acosinput <= -1
-                if ~NearZero(1 + R(3, 3))
+                if ~ (norm(1 + R(3, 3)) < 1e-6)
                     omg = (1 / sqrt(2 * (1 + R(3, 3)))) ...
                         * [R(1, 3); R(2, 3); 1 + R(3, 3)];
-                elseif ~NearZero(1 + R(2, 2))
+                elseif ~ (norm(1 + R(2, 2)) < 1e-6)
                     omg = (1 / sqrt(2 * (1 + R(2, 2)))) ...
                         * [R(1, 2); 1 + R(2, 2); R(3, 2)];
                 else
                     omg = (1 / sqrt(2 * (1 + R(1, 1)))) ...
                         * [1 + R(1, 1); R(2, 1); R(3, 1)];
                 end
-                mat_so3 = VecToso3(pi * omg);
+                mat_so3 = Lie.hat_so3_from_R3(pi * omg);
             else
                 theta = acos(acosinput);
-                mat_so3 = theta * (1 / (2 * sin(theta))) * (R - R');
+                mat_so3 = theta * (1 / (2 * sin(theta))) * (R_SO3 - R_SO3');
             end
         end
         function mat_se3 = log_se3_from_SE3(mat_SE3)
-            R_SO3 = mat_SE3(1:3, 1:3);
-            p_R3 = mat_SE3(1:3, 4);
+            % MatrixLog6
+            [R_SO3, p_R3] = Lie.SO3xR3_from_SE3(mat_SE3);
             hat_omega = Lie.log_so3_from_SO3(R_SO3);
-            if isequal(omgmat, zeros(3))
+            if isequal(hat_omega, zeros(3))
                 mat_se3 = [zeros(3), T(1: 3, 4); 0, 0, 0, 0];
             else
                 theta = acos((trace(R_SO3) - 1) / 2);

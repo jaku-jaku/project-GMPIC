@@ -55,6 +55,92 @@ T_target = [
 T = Lie.exp_map_SE3_from_R6(Lie.vee_R6_from_se3(se3mat)')
 validate.test_compare(T, T_target, "exp_map_SE3_from_R6");
 
+T = [[1, 0, 0, 0]; [0, 0, -1, 0]; [0, 1, 0, 3]; [0, 0, 0, 1]];
+T_target = [
+ 0         0         0         0;
+ 0         0   -1.5708    2.3562;
+ 0    1.5708         0    2.3562;
+ 0         0         0         0;
+];
+T_mat = Lie.log_se3_from_SE3(T)
+validate.test_compare(T_mat, T_target, "log_se3_from_SE3");
+
+%% ---
+helper.logtitle("spatial_forward_kinematics")
+
+M = [[-1, 0, 0, 0]; [0, 1, 0, 6]; [0, 0, -1, 2]; [0, 0, 0, 1]];
+Slist = [[ 4; 0;    0; 0; 0;  1], ...
+         [ 0; 1;    0; 0; 0;  0], ...
+         [-6; 0; -0.1; 0; 0; -1]];
+thetalist =[pi / 2; 3; pi];
+
+T_target = [
+-0.0000    1.0000         0   -5.0000;
+ 1.0000    0.0000         0    4.0000;
+      0         0   -1.0000    1.6858;
+      0         0         0    1.0000;
+];
+
+T_mat = OpenChain.spatial_forward_kinematics(M, Slist, thetalist)
+
+validate.test_compare(T_mat, T_target, "spatial_forward_kinematics");
+
+%% ---
+helper.logtitle("spatial_inverse_kinematics")
+
+Slist = [[  4; 0;    0; 0; 0;  1], ...
+         [  0; 1;    0; 0; 0;  0], ...
+         [ -6; 0; -0.1; 0; 0; -1]];
+M = [[-1, 0, 0, 0]; [0, 1, 0, 6]; [0, 0, -1, 2]; [0, 0, 0, 1]];
+T = [[0, 1, 0, -5]; [1, 0, 0, 4]; [0, 0, -1, 1.6858]; [0, 0, 0, 1]];
+thetalist0 = [1.5; 2.5; 3];
+eomg = 0.01;
+ev = 0.001;
+
+[thetalist, success] = OpenChain.spatial_inverse_kinematics(...
+    Slist, M, T, thetalist0, eomg, ev)
+
+theta_target = [1.5707; 2.9997; 3.1415];
+validate.test_compare(thetalist, theta_target, "spatial_inverse_kinematics");
+
+%% ---
+helper.logtitle("body_forward_kinematics")
+
+Blist = [[ 2; 0; 0; 0; 0; -1], ...
+         [0; 1; 0; 0; 0; 0], ...
+         [0; 0; 0.1; 0; 0; 1]];
+M = [[-1, 0, 0, 0]; [0, 1, 0, 6]; [0, 0, -1, 2]; [0, 0, 0, 1]];
+thetalist =[pi / 2; 3; pi];
+
+T_target = [
+-0.0000    1.0000         0   -5.0000;
+ 1.0000    0.0000         0    4.0000;
+      0         0   -1.0000    1.6858;
+      0         0         0    1.0000;
+];
+
+T_mat = OpenChain.body_forward_kinematics(M, Blist, thetalist)
+
+validate.test_compare(T_mat, T_target, "body_forward_kinematics");
+%% ---
+helper.logtitle("body_inverse_kinematics")
+
+Blist = [[ 2; 0; 0; 0; 0; -1], ...
+         [0; 1; 0; 0; 0; 0], ...
+         [0; 0; 0.1; 0; 0; 1]];
+M = [[-1, 0, 0, 0]; [0, 1, 0, 6]; [0, 0, -1, 2]; [0, 0, 0, 1]];
+T = [[0, 1, 0, -5]; [1, 0, 0, 4]; [0, 0, -1, 1.6858]; [0, 0, 0, 1]];
+thetalist0 = [1.5; 2.5; 3];
+eomg = 0.01;
+ev = 0.001;
+
+[thetalist, success] = OpenChain.body_inverse_kinematics(...
+    Blist, M, T, thetalist0, eomg, ev)
+
+theta_target = [1.5707; 2.9997; 3.1415];
+validate.test_compare(thetalist, theta_target, "body_inverse_kinematics");
+
+
 %% [OpenChain Lib Testing]:
 % testing migrations from modern robotics:
 Slist = [[  0; 0.2; 0.2; 0; 0; 1], ...
@@ -73,7 +159,7 @@ Js_target =    [
          0    0.1987    0.4446    0.2849;
     1.0000         0    0.8912   -0.0453;
 ];
-Js = OpenChain.space_jacobian(Slist, theta)
+Js = OpenChain.spatial_jacobian(Slist, theta)
 validate.test_compare(Js, Js_target, "Space Jacobian");
 
 Jb_target =    [
