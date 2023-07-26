@@ -105,6 +105,8 @@ for i = 1:N_links
 end
 
 
+
+
 %% Compute Kinematics) ===== ===== ===== ===== ===== ===== =====:
 DIR = helper.declareSection("test", "compute", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
 % --- 
@@ -123,15 +125,26 @@ G_SE3_wam_spatial_MR = OpenChainMR.spatial_forward_kinematics(G_SE3_s_{end}, Sli
 exp_xi_theta_in_SE3_ = OpenChain.batch_screw_SE3_from_twist_angle_R6xR(xi_R6_s_, JOINT_ANGLE);
 G_SE3_wam_spatial_ours = OpenChain.compute_Spatial_FK(exp_xi_theta_in_SE3_, G_SE3_s_{end});
 % check:
-validate.test_compare(G_SE3_wam_spatial_MR, G_SE3_wam_spatial_ours, "Forward Kinematics");
+validate.test_compare(G_SE3_wam_spatial_MR, G_SE3_wam_spatial_ours, "Spatial Forward Kinematics");
 % compute all joints FK:
 G_SE3_wam_spatial_ours_ = OpenChain.compute_Spatial_FK_for_all_joints(exp_xi_theta_in_SE3_, G_SE3_s_);
 
-% --- 
+
+%% --- 
 % spacial jacobian:
-% body jacobian:
 % --- 
-% -> efficient: comptue based on FK
+% MR:
+J_wam_spatial_MR = OpenChainMR.spatial_jacobian(Slist, JOINT_ANGLE);
+% ours:
+J_wam_spatial_ours = OpenChain.compute_Spatial_Jacobian(xi_R6_s_, exp_xi_theta_in_SE3_);
+validate.test_compare(J_wam_spatial_MR, J_wam_spatial_ours, "Spatial Jacobian")
+
+
+% % --- 
+% % body FK:
+% % --- 
+% G_SE3_wam_body_MR = OpenChainMR.body_forward_kinematics(G_SE3_s_{end}, Slist, JOINT_ANGLE);
+
 
 
 %% ---
@@ -142,7 +155,8 @@ G_SE3_wam_spatial_ours_ = OpenChain.compute_Spatial_FK_for_all_joints(exp_xi_the
 %% PLOT) ===== ===== ===== ===== ===== ===== =====:
 helper.endSection(AUTO_CLOSE);
 DIR = helper.declareSection("test", "plot_wam", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
-helper.newFigure(-1);
+figure(1)
+% helper.newFigure(-1);
 % tiledlayout(2,1);
 ax_1_1 = nexttile();
 
@@ -176,7 +190,7 @@ xlabel('X Axis')
 ylabel('Y Axis')
 zlabel('Z Axis')
 % axis([-1 1 -1 1 0 1])
-helper.saveFigure([400,600], DIR, "FK")
+% helper.saveFigure([400,600], DIR, "FK")
 
 % --- 
 helper.endSection(AUTO_CLOSE);
