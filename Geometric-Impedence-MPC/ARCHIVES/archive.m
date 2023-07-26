@@ -83,3 +83,115 @@ for i=1:N_jnts
 end
 
 validate.set_validatorLevel("all")
+
+
+%% % otheres
+function [G_SE3_wam_spatial_0_, J_spatial_] = compute_Spatial(G_SE3_0_spatial, xi_R6_0_, theta_)
+    J_spatial_ = [];
+    G_SE3_wam_spatial_0_ = {};
+    
+    % init:
+    N_jnts = length(theta_);
+    G_SE3_wam_spatial_0_{1} = G_SE3_0_spatial; % wam base location
+    
+    % Compute Spatial (Forward):
+    for i=1:N_jnts
+        % -> compute transformation from twist coordinates and angles applied:
+        % |---- (more general):
+        G_i_t_{i} = RBT.screw_SE3_from_xi_theta(xi_R6_0_{i}, theta_(i));
+        % |---- (more efficient):
+        % G_i_t_{i} = RBT.screw_SE3_from_axis_point_theta(w_R3_0_{i}, q_R3_0_{i}, theta_(i));
+        
+        % -> cumulate transformation:
+        G_SE3_wam_spatial_0_{i+1} = G_SE3_wam_spatial_0_{i} * G_i_t_{i};
+        
+        % -> compute jacobian:
+        J_spatial_i = Lie.Ad_SE3_from_SE3(G_SE3_wam_spatial_0_{i}) * xi_R6_0_{i};
+        % output:
+        J_spatial_ = [J_spatial_, J_spatial_i];
+    end
+end
+function [G_SE3_wam_body_0_, J_body_] = compute_Body(G_SE3_tool_frame, xi_R6_0_, theta_)
+    J_body_ = [];
+    G_SE3_wam_body_0_ = {};
+    
+    % init:
+    N_jnts = length(theta_);
+    G_SE3_wam_body_0_{1} = G_SE3_tool_frame;
+    
+    %% Compute Body (Backward):
+    for i=1:N_jnts
+        % - compute backwards from tool to base:
+        G_b_t_{i} = RBT.screw_SE3_from_xi_theta(xi_R6_0_{N_jnts-i+1}, theta_(N_jnts-i+1));
+        % -> cumulate transformation:
+        G_SE3_wam_body_0_{i+1} = G_SE3_wam_body_0_{i} * G_b_t_{i};
+        
+        % -> compute jacobian:
+        J_body_i = Lie.inv_Ad_SE3_from_SE3(G_SE3_wam_body_0_{i}) * xi_R6_0_{N_jnts-i+1};
+        % output:
+        J_body_ = [J_body_i, J_body_];
+    end
+end
+function G_SE_b_st_1_ = compute_Body_FK(G_SE3_0_st, exp_xi_theta_in_SE3_1_)
+    % @G_SE3_0_st : zero/home configuration of the EE
+    N_jnts = length(exp_xi_theta_in_SE3_1_);
+    % Compute Body (Forward):
+    % > g_st(t) = exp_xi_1(t_i) * exp_xi_2(t_i+1) * ... * exp_xi_n(t_n) * g_st(0)
+    T = G_SE3_0_st;
+    for i=1:N_jnts
+        T = exp_xi_theta_in_SE3_1_{N_jnts-i+1} * T; % cummulate
+        G_SE3_s_st_1_{i} = T;                       % cache
+    end
+    G_SE3_s_st_1_ = flip(G_SE3_s_st_1_); % flip the order
+end
+function [G_SE3_s_st_, J_6x6_s_st_] = compute_Spatial_from_SE3(G_SE3_0_spatial, xi_R6_0_, exp_xi_theta_in_SE3_)
+    % init:
+    N_jnts = length(exp_xi_theta_in_SE3_);
+    J_6x6_s_st_ = [];                % joints starting from 1 ... N
+    G_SE3_s_st_ = {G_SE3_0_spatial}; % frames starting from 0 ... N
+    
+    % Compute Spatial (Forward):
+    for i=1:N_jnts
+        % -> compute current jacobian:
+        Ad_0_i = Lie.Ad_SE3_from_SE3(G_SE3_s_st_{i}); % frame i-1:0
+        J_6x6_s_st_ =  Ad_0_i * xi_R6_0_{i};          % joint   i:1
+
+        % -> cumulate current transformation:
+        G_SE3_s_st_{i+1} = G_SE3_s_st_{i} * exp_xi_theta_in_SE3_{i}; % frame i:1
+    end
+end
+
+
+%% %%
+G_SE3_wam_spatial_0 = OpenChain.compute_Spatial_FK(exp_xi_theta_in_SE3_, G_SE3_0_{end})
+% G_SE3_wam_spatial_0 = OpenChain.compute_Spatial_FK_from_theta(xi_R6_1_, JOINT_ANGLEG_SE3_0_{end})
+
+% [G_SE3_wam_spatial_0_, J_spatial_] = OpenChain.compute_Spatial_from_SE3(SUMMIT_POSE_SE3, xi_R6_1_, exp_xi_theta_in_SE3_);
+% [G_SE3_wam_body_0_, J_body_] = OpenChain.compute_Body_from_SE3(G_SE3_0_{end}, xi_R6_1_, exp_xi_theta_in_SE3_);
+
+% -> alternative: compute directly
+% [G_SE3_wam_spatial_, J_spatial_] = OpenChain.compute_Spatial(G_SE3_summit_wam, xi_R6_0_, JOINT_ANGLE);
+% [G_SE3_wam_body_, J_body_] = OpenChain.compute_Body(G_SE3_0_{N_jnts}, xi_R6_0_, JOINT_ANGLE);
+
+%% --- 
+
+%
+theta = zeros(N_jnts);
+d_theta = zeros(N_jnts);
+dd_theta = zeros(N_jnts);
+
+g = [0; 0; 0];
+Ftip = [0; 0; 0; 0; 0; 0]; % > Spatial force applied by the end-effector expressed in frame {n+1}
+Mlist = cat(3, G_SE3_{:});
+Glist = cat(3, M_R6x6_{:});
+
+Slist = cat(2, xi_R6_0_{:});
+
+
+Js = OpenChainMR.spatial_jacobian(Slist, theta);
+
+% Tau = OpenChainMR.inverse_dynamics(theta, d_theta, dd_theta, g, Ftip, Mlist, Glist, Slist);
+% c = OpenChainMR.vel_qualdratic_force(theta, d_theta, Mlist, Glist, Slist);
+% M = OpenChainMR.mass_matrix(theta, Mlist, Glist, Slist)
+
+% Jb = OpenChainMR.body_jacobian(Blist, theta)

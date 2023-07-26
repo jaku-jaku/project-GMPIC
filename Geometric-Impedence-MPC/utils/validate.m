@@ -117,7 +117,7 @@ classdef validate
             delta = norm(A-B);
             msg = validate.log(name, sprintf("equivalent! epsilon=%f",delta));
             assert( delta < validate.TOLERANCE, msg )
-            helper.loginfo("[ x-- test passed! ]");
+            helper.loginfo(sprintf("> %s \n\t[ x-- test passed! ]", msg));
         end
     end
 end

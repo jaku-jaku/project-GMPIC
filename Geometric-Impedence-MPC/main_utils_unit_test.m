@@ -81,7 +81,7 @@ T_target = [
       0         0         0    1.0000;
 ];
 
-T_mat = OpenChain.spatial_forward_kinematics(M, Slist, thetalist)
+T_mat = OpenChainMR.spatial_forward_kinematics(M, Slist, thetalist)
 
 validate.test_compare(T_mat, T_target, "spatial_forward_kinematics");
 
@@ -97,7 +97,7 @@ thetalist0 = [1.5; 2.5; 3];
 eomg = 0.01;
 ev = 0.001;
 
-[thetalist, success] = OpenChain.spatial_inverse_kinematics(...
+[thetalist, success] = OpenChainMR.spatial_inverse_kinematics(...
     Slist, M, T, thetalist0, eomg, ev)
 
 theta_target = [1.5707; 2.9997; 3.1415];
@@ -119,7 +119,7 @@ T_target = [
       0         0         0    1.0000;
 ];
 
-T_mat = OpenChain.body_forward_kinematics(M, Blist, thetalist)
+T_mat = OpenChainMR.body_forward_kinematics(M, Blist, thetalist)
 
 validate.test_compare(T_mat, T_target, "body_forward_kinematics");
 %% ---
@@ -134,14 +134,14 @@ thetalist0 = [1.5; 2.5; 3];
 eomg = 0.01;
 ev = 0.001;
 
-[thetalist, success] = OpenChain.body_inverse_kinematics(...
+[thetalist, success] = OpenChainMR.body_inverse_kinematics(...
     Blist, M, T, thetalist0, eomg, ev)
 
 theta_target = [1.5707; 2.9997; 3.1415];
 validate.test_compare(thetalist, theta_target, "body_inverse_kinematics");
 
 
-%% [OpenChain Lib Testing]:
+%% [OpenChainMR Lib Testing]:
 % testing migrations from modern robotics:
 Slist = [[  0; 0.2; 0.2; 0; 0; 1], ...
          [  2;   0;   3; 1; 0; 0], ...
@@ -159,7 +159,7 @@ Js_target =    [
          0    0.1987    0.4446    0.2849;
     1.0000         0    0.8912   -0.0453;
 ];
-Js = OpenChain.spatial_jacobian(Slist, theta)
+Js = OpenChainMR.spatial_jacobian(Slist, theta)
 validate.test_compare(Js, Js_target, "Space Jacobian");
 
 Jb_target =    [
@@ -170,7 +170,7 @@ Jb_target =    [
       0.7436    0.0930    0.3624         0;
      -0.6671    0.0362   -0.9320         0;
 ];
-Jb = OpenChain.body_jacobian(Slist, theta)
+Jb = OpenChainMR.body_jacobian(Slist, theta)
 validate.test_compare(Jb, Jb_target, "Body Jacobian");
 
 
@@ -197,11 +197,11 @@ Slist = [[      0; 1;     0; 1; 0; 1], ...
 % test:
 helper.logtitle("Dynamic Equations")
 tau_target = [ 74.6962; -33.0675; -3.2306 ];
-tau = OpenChain.inverse_dynamics(theta, d_theta, dd_theta, g, Ftip, Mlist, Glist, Slist)
+tau = OpenChainMR.inverse_dynamics(theta, d_theta, dd_theta, g, Ftip, Mlist, Glist, Slist)
 validate.test_compare(tau, tau_target, "Inverse Dynamics")
 
 C_target = [0.2645; -0.0551; -0.0069];
-C = OpenChain.vel_qualdratic_force(theta, d_theta, Mlist, Glist, Slist)
+C = OpenChainMR.vel_qualdratic_force(theta, d_theta, Mlist, Glist, Slist)
 validate.test_compare(C, C_target, "Vel Quadratic Force")
 
 M_target = [
@@ -209,7 +209,7 @@ M_target = [
     -0.3071    1.9685    0.4322;
     -0.0072    0.4322    0.1916; 
 ];
-M = OpenChain.mass_matrix(theta, Mlist, Glist, Slist)
+M = OpenChainMR.mass_matrix(theta, Mlist, Glist, Slist)
 validate.test_compare(M, M_target, "Mass Matrix")
 
 %%
@@ -240,7 +240,7 @@ Kd = 1.1;
 
 % test:
 tau_target = [133.0053; -29.9422; -3.0328];
-tau = OpenChain.force_computed_at_EE(theta, d_theta, e_int, g, ... 
+tau = OpenChainMR.force_computed_at_EE(theta, d_theta, e_int, g, ... 
                             Mlist, Glist, Slist, ...
                             r_theta, r_d_theta, r_dd_theta, ...
                             Kp, Ki, Kd)
