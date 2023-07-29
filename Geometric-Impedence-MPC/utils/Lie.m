@@ -287,10 +287,18 @@ classdef Lie
             ];
         end
     % [SE3 products]
-        function mat = prod_SE3_from_SE3xk(mats)
+        function mat = prodLeft_SE3_from_SE3xk(mats)
             mat = mats{1};
+            % N x N-1 x ... x 1
             for i = 2:length(mats)
                 mat = mat * mats{i};
+            end
+        end
+        function mat = prodRight_SE3_from_SE3xk(mats)
+            mat = mats{1};
+            % 1 x ... x N
+            for i = 2:length(mats)
+                mat = mats{i} * mat;
             end
         end
     % [SE3 ops]

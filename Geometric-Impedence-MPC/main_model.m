@@ -47,8 +47,6 @@ xi_R6_s_ = cell(1,N_links);
 G_SE3_s_ = cell(1,N_links);
 % moment:
 M_R6x6_ = cell(1,N_links); 
-Ad_inv_g0_s_l_ = cell(1,N_links); 
-M_R6x6_spatial_ = cell(1,N_links); 
 
 % [iterating links forward]:
 for i = 1:N_links
@@ -84,20 +82,17 @@ for i = 1:N_links
     
     % - twist:
     xi_R6_s_{i} = RBT.twist_R6_from_axis_point(w_R3_s_i, G_SE3_s_{i}(1:3,4));
+
+    %%% compute generalized inertia matrix: ---->O---x--->---
+    % - fectch mass, com, MoI:
+    m_R_i = common.WAM(i).mass;
+    q_mc_R3_i = common.WAM(i).tip_frame_mass_center';
+    I_R3x3_i = common.WAM(i).tip_frame_MoI_at_mass; 
     
-%     % [ spatial twist ] 
-%     helper.logdebug(helper.a2str("xi_R6_s_{i}",xi_R6_s_{i}));
-%     % [ spatial transformation ] 
-%     helper.logdebug(helper.a2str("G_SE3_s_{i}",G_SE3_s_{i}));
+    M_R6x6_{i} = OpenChain.init_link_generalized_inertia_matrix(m_R_i, I_R3x3_i);
 end
 
 xi_R6_s = cat(2,xi_R6_s_{:})
-
-%% [INIT Jnt Angles]:
-% --- 
-JOINT_ANGLE = zeros(1,N_jnts)';
-% JOINT_ANGLE = pi/4 * valid_jnts_filter * ones(1,N_jnts)';
-%JOINT_ANGLE(3) = 0.2;
 
 %% [iterating links backward]:
 G_SE3_rvr_ = cell(1,N_links);
@@ -125,35 +120,15 @@ for i = N_links:-1:2
     
     % - twist:
     xi_R6_b_{i-1} = RBT.twist_R6_from_axis_point(w_R3_b_i, G_SE3_b_{i}(1:3,4));
-
-    
-%     % - compute generalized inertia matrix: ---->O---x--->---
-%     m_R_i = common.WAM(i).mass;
-%     mc_R3_i = common.WAM(i).tip_frame_mass_center';
-%     I_mc_R3x3_i = common.WAM(i).tip_frame_MoI_at_mass; % inertia at mass center , aligned with output frame axis
-%     mc_R3_i_hat = Lie.hat_so3_from_R3(mc_R3_i);
-%     % - inertia at mass center , aligned with output frame axis:
-%     % M_mass_center_i = [
-%     %     m_R_i * eye(3)  , zeros(3,3);
-%     %     zeros(3,3)      , I_mc_R3x3_i;
-%     % ];
-%     % - translating inertia matrix from center-of-mass to the output frame:
-%     M_R6x6_{i} = [
-%         m_R_i * eye(3)       , -m_R_i*mc_R3_i_hat; ...
-%         m_R_i * mc_R3_i_hat  , I_mc_R3x3_i - m_R_i * mc_R3_i_hat^2
-%     ]; % [pg 288, ]
-% 
-%     % - adjoint (0)
-%     % Ad_inv_g0_s_l_{i} = Lie.Ad_SE3_from_SE3(RBT.inverse_SE3(G_SE3_s_i));
-%     Ad_inv_g0_s_l_{i} = Lie.inv_Ad_SE3_from_SE3(G_SE3_s_i); % equivalent
-% 
-%     % - Inertia of the ith link reflected into the base spatial frame:
-%     % [4.28, Murray]
-%     M_R6x6_spatial_{i} = Ad_inv_g0_s_l_{i}' * M_R6x6_{i} * Ad_inv_g0_s_l_{i}; 
 end
 
 xi_R6_b = cat(2,xi_R6_b_{:})
-% inv_ad_gst = Lie.inv_Ad_SE3_from_SE3(G_SE3_wam_spatial_ours);
+
+%% [INIT Jnt Angles]:
+% --- 
+JOINT_ANGLE = zeros(1,N_jnts)';
+% JOINT_ANGLE = pi/4 * valid_jnts_filter * ones(1,N_jnts)';
+% JOINT_ANGLE(3) = 0.2;
 
 %% Body) ===== ===== ===== ===== ===== ===== =====:
 DIR = helper.declareSection("test", "body", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
@@ -204,6 +179,9 @@ exp_xi_theta_in_SE3_ = OpenChain.batch_screw_SE3_from_twist_angle_R6xR(xi_R6_s_,
 G_SE3_wam_spatial_ours = OpenChain.compute_Spatial_FK(exp_xi_theta_in_SE3_, G_SE3_s_{end});
 % check:
 validate.if_equivalent(G_SE3_wam_spatial_MR, G_SE3_wam_spatial_ours, "Spatial Forward Kinematics");
+% --- 
+% spacial FK for all links:
+% --- 
 % compute all joints FK:
 G_SE3_wam_spatial_ours_ = OpenChain.compute_Spatial_FK_for_all_joints(exp_xi_theta_in_SE3_, G_SE3_s_);
 
@@ -217,17 +195,43 @@ J_wam_spatial_ours = OpenChain.compute_Spatial_Jacobian(xi_R6_s_, exp_xi_theta_i
 validate.if_equivalent(J_wam_spatial_MR, J_wam_spatial_ours, "Spatial Jacobian")
 
 % --- 
-% body jacobian:
+% body jacobian from spatial:
 % --- 
 ad_gst = Lie.Ad_SE3_from_SE3(G_SE3_wam_spatial_ours);
 % ours w/ spatial:
 J_wam_body_ours_v2 = OpenChain.compute_Body_Jacobian_from_Spatial(xi_R6_s_, exp_xi_theta_in_SE3_, G_SE3_s_{end})
 J_wam_spatial_from_body = ad_gst * J_wam_body_ours_v2; % [Murray 3.56]
 validate.if_equivalent(J_wam_spatial_from_body, J_wam_spatial_ours, "J_spatial = Ad_gst * J_body [Murray 3.56]")
-
 validate.if_equivalent(J_wam_body_ours_v2, J_wam_body_ours, "J_body_from_spatial = J_body")
 
+% --- 
+% body jacobian for all links:
+% --- 
+J_b_sl_ = OpenChain.compute_Body_Jacobian_for_all_links_from_Spatial(xi_R6_s_, exp_xi_theta_in_SE3_, G_SE3_s_)
+validate.if_equivalent(J_b_sl_{end}, J_wam_body_ours, "J_body_{end} = J_body")
 
+for i=1:N_jnts
+    J_b_sl_end_i = OpenChain.compute_Body_Jacobian_from_Spatial({xi_R6_s_{1:i}}, exp_xi_theta_in_SE3_, G_SE3_s_{i});
+    validate.if_equivalent(J_b_sl_{i}(:,1:i), J_b_sl_end_i, sprintf("J_body_{%d} = J_body_from_spatial(1:%d)",i,i))
+end
+
+% --- 
+% Dynamic Parameters:
+% --- 
+M_RNxN_t_ = OpenChain.compute_M(J_b_sl_, M_R6x6_)
+M_RNxN_t_v2_ = OpenChain.compute_M_v2(xi_R6_s_, exp_xi_theta_in_SE3_, G_SE3_s_, M_R6x6_)
+
+
+%% Spatial) ===== ===== ===== ===== ===== ===== =====:
+DIR = helper.declareSection("test", "dynamics", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
+% --- 
+% mass matrix:
+% --- 
+Mlist = cat(3, WAM_Spatial_0, G_SE3_{:});
+Glist = cat(3, M_R6x6_{:});
+mass_MR = OpenChainMR.mass_matrix(JOINT_ANGLE, Mlist, Glist, Slist)
+
+validate.if_equivalent(M_RNxN_t_, mass_MR, "mass_MR == M_RNxN_t_")
 
 
 %% PLOT) ===== ===== ===== ===== ===== ===== =====:

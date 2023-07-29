@@ -159,7 +159,7 @@ classdef OpenChainMR
                                     Glist, Slist);
             end
         end
-        function JTFtip = force_at_EE(theta, Ftip, Mlist, Glist, Slist)
+        function JTFtip = EE_Force_to_Joint_Torques(theta, Ftip, Mlist, Glist, Slist)
             % return: joint forces required to create the EE force Ftip
             % EndEffectorForces.m
             % Returns JTFtip: The joint forces and torques required only to create the end-effector force Ftip.
@@ -167,7 +167,7 @@ classdef OpenChainMR
             JTFtip = OpenChainMR.inverse_dynamics(zeros(n, 1), zeros(n, 1), ...
                                     [0; 0; 0], Ftip, Mlist, Glist, Slist);
         end
-        function Tau = force_computed_at_EE(theta, d_theta, e_int, g, ... 
+        function Tau = computed_torque_at_joints(theta, d_theta, e_int, g, ... 
                                         Mlist, Glist, Slist, ...
                                         r_theta, r_d_theta, r_dd_theta, ...
                                         Kp, Ki, Kd)

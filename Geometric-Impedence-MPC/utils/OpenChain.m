@@ -31,6 +31,23 @@ classdef OpenChain
                 G_st_SE3_n_{i} = exp_xi_theta_in_SE3_{i} * G_st_SE3_n_{i+1};
             end
         end
+        %% % [ Definitions ] 
+        function M_R6x6_i = init_link_generalized_inertia_matrix(m_R_i, I_mc_R3x3_i)
+            % -* inertia at the output frame axis:
+            M_R6x6_i = [
+                m_R_i * eye(3)  , zeros(3,3);
+                zeros(3,3)      , I_mc_R3x3_i;
+            ];
+        end
+        function M_R6x6_i = init_link_generalized_inertia_matrix_from_com(m_R_i, q_mc_R3_i, I_mc_R3x3_i)
+            % -* inertia at the center-of-mass, aligned with output frame axis:
+            % -> translating inertia matrix from center-of-mass to the output frame:
+            mc_R3_i_hat = Lie.hat_so3_from_R3(q_mc_R3_i);
+            M_R6x6_i = [
+                m_R_i * eye(3)       , -m_R_i*mc_R3_i_hat; ...
+                m_R_i * mc_R3_i_hat  , I_mc_R3x3_i - m_R_i * mc_R3_i_hat^2
+            ]; % [pg 288, ]
+        end
         %% % [ Cell Based Batch Process ] 
         function cell_ = cell_prod(A,B)
             [ AN, AM ] = size(A);
@@ -93,7 +110,106 @@ classdef OpenChain
                 J_s_st(:,i) =  Ad_1_i * xi_R6_1_{i};
             end
         end
-        %% % [ Body ] %%% %%% %%% %%% %%% %%% %%%
+        function M_R6x6_spatial_ = compute_Spatial_Inertia(M_R6x6_, g0_st_SE3_)
+            % @M_R6x6_: Moments at the link joint output frame
+            % USAGE: M_R6x6_spatial_ = OpenChain.compute_Spatial_Inertia(M_R6x6_, G_SE3_s_); % [Murray 4.28]
+            N_jnts = length(g0_st_SE3_);
+            M_R6x6_spatial_ = cell(1,N_jnts);
+            for i=1:N_jnts
+                % - inverse adjoint for zero config
+                inv_Ad_g0_sl_i = Lie.inv_Ad_SE3_from_SE3(g0_st_SE3_{i});
+                % - Inertia of the ith link reflected into the base spatial frame:
+                % [4.28, Murray]
+                M_R6x6_spatial_{i} = inv_Ad_g0_sl_i' * M_R6x6_{i} * inv_Ad_g0_sl_i; 
+            end
+        end
+        function M_RNxN_t_ = compute_M(J_b_sl_, M_R6x6_)
+            N_links = length(M_R6x6_);
+            M_RNxN_t_ = zeros(N_links,N_links);
+            for i=1:N_links
+                M_RNxN_t_ = M_RNxN_t_ + J_b_sl_{i}' * M_R6x6_{i} * J_b_sl_{i};
+            end
+        end
+        function M_RNxN_t_ = compute_M_v2(xi_R6_1_, exp_xi_theta_in_SE3_1_, g0_st_SE3_, M_R6x6_)
+            N_jnts = length(xi_R6_1_);
+            M_RNxN_t_ = zeros(N_jnts,N_jnts);
+        
+            % --- 
+            % Adjoint Transformation:
+            % - depends on current configuration of the manipulator
+            % --- 
+            A_ij = cell(N_jnts);
+            for i=1:N_jnts
+                for j=1:N_jnts
+                    % disp([i,j])
+                    if i>j
+                        G_ji = Lie.prodLeft_SE3_from_SE3xk({exp_xi_theta_in_SE3_1_{j+1:i}});
+                        A_ij{i,j} = Lie.inv_Ad_SE3_from_SE3(G_ji);
+                    elseif i==j
+                        A_ij{i,j} = eye(6);
+                    else
+                        A_ij{i,j} = 0;
+                    end
+                end
+            end
+
+            inv_Ad_g0_sl_i = Lie.inv_Ad_SE3_from_SE3(g0_st_SE3_{i});
+            M_i_prime_ = cell(1,N_jnts);
+            for i=1:N_jnts % for each link [Murray 4.27]
+                M_i_prime_{i} = inv_Ad_g0_sl_i' * M_R6x6_{i} * inv_Ad_g0_sl_i;
+            end
+            % [xi_N' ... xi_1']:
+            for i=1:N_jnts % for each link [Murray 4.29]
+                for j=1:N_jnts
+                    for l=max(i,j):N_jnts
+                        M_RNxN_t_(i,j) = M_RNxN_t_(i,j) ...
+                            + xi_R6_1_{i}' * A_ij{l,i}' * M_i_prime_{l} * A_ij{l,j} * xi_R6_1_{j};
+                    end
+                end
+            end
+        end
+        %% % [ Body from Spatial ] %%% %%% %%% %%% %%% %%% %%%
+        function J_b_st = compute_Body_Jacobian_from_Spatial(xi_R6_1_, exp_xi_theta_in_SE3_1_, g0_st_SE3)
+            N_jnts = length(xi_R6_1_);
+            
+            % J = [xi_1, xi_2', ... , xi_N' ]:
+            J_b_st = zeros(6,N_jnts);
+            g_st_SE3_i_n = eye(4);
+            
+            % [xi_N' ... xi_1']:
+            for i=N_jnts:-1:1
+                % -> compute current jacobian:
+                g_st_SE3_i_n = exp_xi_theta_in_SE3_1_{i} * g_st_SE3_i_n; 
+                Ad_i_n = Lie.inv_Ad_SE3_from_SE3(g_st_SE3_i_n * g0_st_SE3);
+                % compute jacobian @ xi_i:
+                J_b_st(:,i) =  Ad_i_n * xi_R6_1_{i};
+            end
+        end
+        function J_b_sl_ = compute_Body_Jacobian_for_all_links_from_Spatial(xi_R6_1_, exp_xi_theta_in_SE3_1_, g0_st_SE3_)
+            N_jnts = length(xi_R6_1_);
+
+            % J = [xi_1, xi_2', ... , xi_N' ]:
+            J_b_sl_ = cell(1,N_jnts);
+            
+            % [xi_N' ... xi_1']:
+            for i=1:N_jnts % for each link [Murray 4.27]
+                J_b_sl_{i} = zeros(6,N_jnts); 
+
+                % compute body jacobian for i th link:
+                xi_i = zeros(6,N_jnts); % 0s
+                xi_i(:,i) = xi_R6_1_{i}; % Is
+                if i>1 % inv_Ad
+                    G_st_SE3_j2_i = OpenChain.compute_RVR_Exponential_Chain({exp_xi_theta_in_SE3_1_{2:i}});
+                    for j=1:i-1
+                        xi_i(:,j) = Lie.inv_Ad_SE3_from_SE3(G_st_SE3_j2_i{j}) * xi_R6_1_{j};
+                    end
+                end
+                inv_Ad_g0_sl_i = Lie.inv_Ad_SE3_from_SE3(g0_st_SE3_{i});
+                % compute jacobian @ xi_i:
+                J_b_sl_{i} = inv_Ad_g0_sl_i * xi_i;
+            end
+        end
+        %% % [ Body from Body ] %%% %%% %%% %%% %%% %%% %%%
         function G_b_st_SE3 = compute_Body_FK(exp_xi_theta_in_SE3_body_, g0_st_SE3_body_)
             % @G0_SE3_st_EE: zero/home configuration of the ToolFrame: g_st(0)
             N_jnts = length(exp_xi_theta_in_SE3_body_);
@@ -132,22 +248,6 @@ classdef OpenChain
                 Ad_1_i = Lie.Ad_SE3_from_SE3(g_st_SE3_n_i);
                 % compute jacobian @ xi_i:
                 J_b_st(:,i) =  Ad_1_i * xi_R6_body_{i};
-            end
-        end
-        function J_b_st = compute_Body_Jacobian_from_Spatial(xi_R6_1_, exp_xi_theta_in_SE3_1_, g0_st_SE3_)
-            N_jnts = length(xi_R6_1_);
-            
-            % J = [xi_1, xi_2', ... , xi_N' ]:
-            J_b_st = zeros(6,N_jnts);
-            g_st_SE3_i_n = eye(4);
-            
-            % [xi_N' ... xi_1']:
-            for i=N_jnts:-1:1
-                % -> compute current jacobian:
-                g_st_SE3_i_n = exp_xi_theta_in_SE3_1_{i} * g_st_SE3_i_n; 
-                Ad_i_n = Lie.inv_Ad_SE3_from_SE3(g_st_SE3_i_n * g0_st_SE3_);
-                % compute jacobian @ xi_i:
-                J_b_st(:,i) =  Ad_i_n * xi_R6_1_{i};
             end
         end
         %% Shortcuts:
