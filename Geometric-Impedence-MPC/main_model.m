@@ -215,24 +215,21 @@ for i=1:N_jnts
     validate.if_equivalent(J_b_sl_{i}(:,1:i), J_b_sl_end_i, sprintf("J_body_{%d} = J_body_from_spatial(1:%d)",i,i))
 end
 
+
+% --- 
+% mass matrix:
+% --- 
+Mlist = cat(3, eye(4), G_SE3_{:});
+Glist = cat(3, M_R6x6_{:});
+mass_MR = OpenChainMR.mass_matrix(JOINT_ANGLE, Mlist, Glist, Slist)
+
 % --- 
 % Dynamic Parameters:
 % --- 
 M_RNxN_t_ = OpenChain.compute_M(J_b_sl_, M_R6x6_)
 M_RNxN_t_v2_ = OpenChain.compute_M_v2(xi_R6_s_, exp_xi_theta_in_SE3_, G_SE3_s_, M_R6x6_)
-
-
-%% Spatial) ===== ===== ===== ===== ===== ===== =====:
-DIR = helper.declareSection("test", "dynamics", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
-% --- 
-% mass matrix:
-% --- 
-Mlist = cat(3, WAM_Spatial_0, G_SE3_{:});
-Glist = cat(3, M_R6x6_{:});
-mass_MR = OpenChainMR.mass_matrix(JOINT_ANGLE, Mlist, Glist, Slist)
-
+% TODO: our Moments computation does not seem to match with Open MR :(
 validate.if_equivalent(M_RNxN_t_, mass_MR, "mass_MR == M_RNxN_t_")
-
 
 %% PLOT) ===== ===== ===== ===== ===== ===== =====:
 helper.endSection(AUTO_CLOSE);
