@@ -81,7 +81,7 @@ classdef utils
             % Plot the coordinate frame of the tail:
         end
         %% Plotting Summit %%
-        function transformed_origin = plot_Summit(screw_rotation,loc_of_link_frame,link_name,axis_ref)
+        function transformed_origin = plot_Summit(screw_rotation,loc_of_link_frame,link_name)
             %UNTITLED4 PLot the summit
             % screw_rotation - This gives us the total solid-motion undergone by the
             % link
