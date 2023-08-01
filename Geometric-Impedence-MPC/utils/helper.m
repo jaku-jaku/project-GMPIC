@@ -180,8 +180,13 @@ classdef helper
         end
         %% Casadi:
         function includeCasadi()
-            addpath('~/JX-Platform/casadi-3');
-            helper.logutil("Included Casadi-3!");
+            usr = getenv("USER");
+            if usr == "jaku"
+                addpath('~/JX-Platform/casadi-3');
+                helper.logutil("Included Casadi-3!");
+            else
+                import casadi.*; % by default
+            end
         end
         %% Diary:
         function createDiary(FOLDER, FILE_NAME)
