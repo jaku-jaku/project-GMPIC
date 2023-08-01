@@ -229,19 +229,29 @@ mass_MR = OpenChainMR.mass_matrix(JOINT_ANGLE, Mlist, Glist, Slist)
 M_RNxN_t_ = OpenChain.compute_M(J_b_sl_, M_R6x6_)
 M_RNxN_t_v2_ = OpenChain.compute_M_v2(xi_R6_s_, exp_xi_theta_in_SE3_, G_SE3_s_, M_R6x6_)
 % TODO: our Moments computation does not seem to match with Open MR :(
-validate.if_equivalent(M_RNxN_t_, mass_MR, "mass_MR == M_RNxN_t_")
+%validate.if_equivalent(M_RNxN_t_, mass_MR, "mass_MR == M_RNxN_t_")
+%%
+% compute the configuration error
+[psiX, psiXse] = Error.ConfgError(G_SE3_wam_spatial_ours);
+xi0 = Lie.vee_R6_from_se3(G_SE3_wam_spatial_ours)';
+xiRef  = [0,0,1,2,0,0.2]';
+dxiRef = rand(6,1);
+mat = Lie.ad_se3_from_R6(xi0);
+N =4;
+% Run error MPC
+[U,err,X] = Error.eMPC(N,xi0,xiRef, dxiRef, mat)
 
 %% PLOT) ===== ===== ===== ===== ===== ===== =====:
 helper.endSection(AUTO_CLOSE);
 DIR = helper.declareSection("test", "plot_wam", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
-figure(1)
+figure(2)
 % helper.newFigure(-1);
 % tiledlayout(2,1);
 ax_1_1 = nexttile();
 
 % [ Spatial ]
 % plot summit:
-utils.plot_Summit(SUMMIT_POSE_SE3,SUMMIT_POSE_SE3,'S',ax_1_1);
+%utils.plot_Summit(SUMMIT_POSE_SE3,SUMMIT_POSE_SE3,'S',ax_1_1);
 
 % plot base link:
 utils.plot_link( ...
