@@ -222,6 +222,7 @@ end
 Mlist = cat(3, eye(4), G_SE3_{:});
 Glist = cat(3, M_R6x6_{:});
 mass_MR = OpenChainMR.mass_matrix(JOINT_ANGLE, Mlist, Glist, Slist)
+gravity_MR = OpenChainMR.gravity_forces(JOINT_ANGLE, [0,0,9.81], Mlist, Glist, Slist)
 
 % --- 
 % Dynamic Parameters:
@@ -236,10 +237,12 @@ M_RNxN_t_v2_ = OpenChain.compute_M_v2(xi_R6_s_, exp_xi_theta_in_SE3_, G_SE3_s_, 
 xi0 = Lie.vee_R6_from_se3(G_SE3_wam_spatial_ours)';
 xiRef  = [0,0,1,2,0,0.2]';
 dxiRef = rand(6,1);
-mat = Lie.ad_se3_from_R6(xi0);
-N =4;
+adjxi = Lie.ad_se3_from_R6(xi0);
+N =6;
+Mr = pinv(J_wam_spatial_ours)'*mass_MR*pinv(J_wam_spatial_ours);
+Gr = pinv(J_wam_spatial_ours)'*gravity_MR;
 % Run error MPC
-[U,err,X] = Error.eMPC(N,xi0,xiRef, dxiRef, mat)
+[U,err,X] = Error.eMPC(N,xi0,xiRef, dxiRef, mat, Mr, Gr)
 
 %% PLOT) ===== ===== ===== ===== ===== ===== =====:
 helper.endSection(AUTO_CLOSE);

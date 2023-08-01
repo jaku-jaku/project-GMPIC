@@ -5,8 +5,6 @@ classdef Error
     properties (Constant)
         chiRef = reshape(rand(4,4), [4,4]);
         Dm  = eye(6);
-        % I need the correct ones
-        M =10*eye(6); C = 0.1*eye(6); g = rand(6,1);
         Q =0.2*eye(6);
         R = 10*eye(6);
     end
@@ -17,7 +15,7 @@ classdef Error
             psiXse = logm(psiX);
         end
 
-        function [U,err,X] = eMPC(N,xi0,xiRef, dxiRef, mat)
+        function [U,err,X] = eMPC(N,xi0,xiRef, dxiRef, mat, Mr, Gr)
              import casadi.*
              % creat casadi obj & variables
             opti = casadi.Opti();
@@ -35,7 +33,7 @@ classdef Error
 
             for k = 1:N-2
                  opti.subject_to(dpsi(:,k+1) == -mat*dpsi(:,k) + xiRef-xi0)
-                opti.subject_to(xi(:,k) ==Error. Dm\Error.M*dxiRef + xiRef + Error.Dm\Error.C*xiRef +Error.g - u(:,k))
+                opti.subject_to(xi(:,k) ==Error. Dm\Mr*dxiRef + xiRef  + Gr - u(:,k))
              end
             opti.subject_to(dpsi(:,N) == zeros(6,1)) % terminal velocity equals zero
  
@@ -50,6 +48,7 @@ classdef Error
             U = sol.value(u);
             err = sol.value(dpsi);
             X = sol.value(xi);
+
         end
     end
 end
