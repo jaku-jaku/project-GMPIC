@@ -15,7 +15,7 @@ classdef Error
             psiXse = logm(psiX);
         end
 
-        function [U,err,X] = eMPC(N,xi0,xiRef, dxiRef, mat, Mr, Gr)
+        function [U,err,X] = eMPC(N,xi0,xiRef, dxiRef, adjxi, Mr, Gr)
              import casadi.*
              % creat casadi obj & variables
             opti = casadi.Opti();
@@ -26,13 +26,13 @@ classdef Error
             for r = 1:N-1
                  cost = cost + xi(:,r)'*Error.Q*xi(:,r) + dpsi(:,r)'*Error.Q*dpsi(:,r) + u(:,r)'*Error.R*u(:,r);
             end
-            [Qf, ~, ~] = dare(mat, xiRef, Error.Q,1,[],[], 'anti');
+            [Qf, ~, ~] = dare(adjxi, xiRef, Error.Q,1,[],[], 'anti');
             TerminalCost = dpsi(:,N)'*Qf*dpsi(:,N);
             % cost-to-go + terminal cost
             opti.minimize(cost + TerminalCost);
 
             for k = 1:N-2
-                 opti.subject_to(dpsi(:,k+1) == -mat*dpsi(:,k) + xiRef-xi0)
+                 opti.subject_to(dpsi(:,k+1) == -adjxi*dpsi(:,k) + xiRef-xi0)
                 opti.subject_to(xi(:,k) ==Error. Dm\Mr*dxiRef + xiRef  + Gr - u(:,k))
              end
             opti.subject_to(dpsi(:,N) == zeros(6,1)) % terminal velocity equals zero

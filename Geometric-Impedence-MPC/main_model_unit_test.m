@@ -242,8 +242,7 @@ N =6;
 Mr = pinv(J_wam_spatial_ours)'*mass_MR*pinv(J_wam_spatial_ours);
 Gr = pinv(J_wam_spatial_ours)'*gravity_MR;
 % Run error MPC
-[U,err,X] = Error.eMPC(N,xi0,xiRef, dxiRef, mat, Mr, Gr)
-
+[U,err,X] = Error.eMPC(N,xi0,xiRef, dxiRef, adjxi, Mr, Gr)
 %% PLOT) ===== ===== ===== ===== ===== ===== =====:
 helper.endSection(AUTO_CLOSE);
 DIR = helper.declareSection("test", "plot_wam", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
