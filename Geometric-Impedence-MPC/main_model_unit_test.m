@@ -109,7 +109,7 @@ for i = N_links:-1:2
     G_SE3_rvr_{i} = RBT.inverse_SE3(G_SE3_{i}); % relative RBT inversed
     % - propagate base frame inverse TF (i+1) to tip frame (i) in current link:
     if i == N_links
-        G_SE3_b_{i} =  G_SE3_rvr_{i} * G_TOOL_0;
+        G_SE3_b_{i} =  G_TOOL_0 * G_SE3_rvr_{i};
     else
         G_SE3_b_{i} =  G_SE3_b_{i+1} * G_SE3_rvr_{i}; % <--- Propagation
     end
@@ -232,7 +232,6 @@ M_RNxN_t_v2_ = OpenChain.compute_M_v2(xi_R6_s_, exp_xi_theta_in_SE3_, G_SE3_s_, 
 % TODO: our Moments computation does not seem to match with Open MR :(
 %validate.if_equivalent(M_RNxN_t_, mass_MR, "mass_MR == M_RNxN_t_")
 
-
 %% --- 
 % eMPC:
 % --- 
@@ -248,6 +247,7 @@ Gr = pinv(J_wam_spatial_ours)'*gravity_MR;
 % Run error MPC
 helper.includeCasadi();
 [U,err,X] = Error.eMPC(N,xi0,xiRef, dxiRef, adjxi, Mr, Gr)
+
 
 %% PLOT) ===== ===== ===== ===== ===== ===== =====:
 helper.endSection(AUTO_CLOSE);

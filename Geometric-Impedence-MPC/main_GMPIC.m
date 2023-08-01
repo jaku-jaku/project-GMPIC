@@ -49,6 +49,7 @@ Glist = cat(3, M_R6x6_{:});
 mass_MR = OpenChainMR.mass_matrix(JOINT_ANGLE, Mlist, Glist, Slist)
 gravity_MR = OpenChainMR.gravity_forces(JOINT_ANGLE, [0,0,9.81], Mlist, Glist, Slist)
 
+
 % --- 
 % FK SIM:
 % --- 
@@ -56,8 +57,6 @@ exp_xi_theta_in_SE3_ = OpenChain.batch_screw_SE3_from_twist_angle_R6xR(xi_R6_s_,
 G_SE3_wam_spatial_ours_ = OpenChain.compute_Spatial_FK_for_all_joints(exp_xi_theta_in_SE3_, G_SE3_s_);
 helper.newFigure(-1);
 plot_WAM(true, G_SE3_wam_spatial_ours_, WAM_Spatial_0);
-
-
 
 
 % --- 

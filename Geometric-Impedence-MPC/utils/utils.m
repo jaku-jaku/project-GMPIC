@@ -25,6 +25,72 @@ classdef utils
             % Plot the co-ordinate frame of the link at the base:
             utils.plot_axis(curret_config_sframe_SE3_base,0.1,style,link_base_frame_name)
         end
+        function plot_trajectory_from_SE3( ...
+            spatial_frame_SE3_, scale, style, if_label)
+            
+            origin = [0;0;0;1];
+            
+            N = length(spatial_frame_SE3_);
+            p = zeros(4,N);
+            for i=1:N
+                axis_name = "";
+                if if_label
+                    axis_name = string(i);
+                end
+                T = spatial_frame_SE3_{i};
+                p(:,i) = T * origin;
+                utils.plot_axis( T, scale, style, axis_name )
+            end
+
+            % plot line:
+            plot3(p(1,:),p(2,:),p(3,:),sprintf('%s', style),'LineWidth',2)
+
+            grid on;
+            axis equal;
+            xlabel('X Axis')
+            ylabel('Y Axis')
+            zlabel('Z Axis')
+        end
+        function plot_trajectory_from_twist( ...
+            spatial_frame_R6_, scale, style, if_label)
+
+            origin = [0;0;0;1];
+            
+            N = length(spatial_frame_R6_);
+            p = zeros(4,N);
+            for i=1:N
+                axis_name = "";
+                if if_label
+                    axis_name = string(i);
+                end
+                T = Lie.exp_map_SE3_from_R6(spatial_frame_R6_{i});
+                p(:,i) = T * origin;
+                utils.plot_axis( T, scale, style, axis_name )
+            end
+
+            % plot line:
+            plot3(p(1,:),p(2,:),p(3,:),sprintf('%s', style),'LineWidth',2)
+        end
+        function plot_trajectory_from_twist_mat( ...
+            spatial_frame_R6xk_, scale, style, if_label)
+
+            origin = [0;0;0;1];
+            
+            [m,N] = size(spatial_frame_R6xk_);
+            p = zeros(4,N);
+            for i=1:N
+                axis_name = "";
+                if if_label
+                    axis_name = string(i);
+                end
+                T = Lie.exp_map_SE3_from_R6(spatial_frame_R6xk_(:,i));
+                p(:,i) = T * origin;
+                utils.plot_axis( T, scale, style, axis_name )
+            end
+
+            % plot line:
+            plot3(p(1,:),p(2,:),p(3,:),sprintf('%s', style),'LineWidth',2)
+        end
         function plot_axis_screw_motion( ...
             screw_motion_SE3, ...
             spatial_frame_SE3, ...
