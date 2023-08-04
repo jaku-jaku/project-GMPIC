@@ -48,7 +48,7 @@ classdef WAM_model
             [N_angles,N_sim] = size(LIST_OF_JOINT_ANGLES);
             obj.assert_if_jnts(N_jnts);
             % set initial angles:
-            obj = obj.set_angles(INIT_ANGLES);
+            obj = obj.set_angle(INIT_ANGLES);
             data = struct( ...
                 "theta",zeros(N_angles,N_sim+1), ...
                 "d_theta",zeros(N_angles,N_sim+1), ...
@@ -72,16 +72,17 @@ classdef WAM_model
                 
                 % --- 
                 % dynamics:
-                % --- 
+                % ---
+                % TODO: these disturbance can be injected somehow
+                force_at_jnt = zeros(N_angles, 1); % [NOTE: zero external force]d
+                force_at_EE = zeros(6, 1);  % [NOTE: zero external force] : [Fx; Fy; Fz; tx; ty; tz];
+                % compute config-dependent dyn variables:
                 m_mass_MR = OpenChainMR.mass_matrix(theta_r_k, obj.Mlist, obj.Glist, obj.Slist);
                 m_gravity_MR = OpenChainMR.gravity_forces(theta_r_k, obj.GRAVITY, obj.Mlist, obj.Glist, obj.Slist);
                 m_Coriolis_MR = OpenChainMR.vel_qualdratic_force(theta_r_k, d_theta_r_k, obj.Mlist, obj.Glist, obj.Slist);
-
+                m_EE_force_MR = OpenChainMR.EE_Force_to_Joint_Torques(theta_r_k, force_at_EE, obj.Mlist, obj.Glist, obj.Slist);
                 % compute dynamics:
-                % TODO: these disturbance can be injected somehow
-                force_at_jnt = zeros(N_angles, 1); % [NOTE: zero external force]
-                force_at_EE = zeros(N_angles, 1);  % [NOTE: zero external force]
-                dd_theta_k = m_mass_MR \ (force_at_jnt - m_Coriolis_MR - m_gravity_MR - force_at_EE);
+                dd_theta_k = m_mass_MR \ (force_at_jnt - m_Coriolis_MR - m_gravity_MR - m_EE_force_MR);
 
                 % update:
                 data.theta(:,1) = theta_r_k;
@@ -129,7 +130,7 @@ classdef WAM_model
                 G_SE3_EE_spatial_traj_{k} = OpenChain.compute_Spatial_FK(exp_xi_theta_in_SE3_, obj.G_SE3_s_{end});
             end
         end
-        function animate_with(obj,list_of_thetas,VIEW_SIZE,VIEW_ANGLE,DIR,TAG,FPS)
+        function animate_with(obj,list_of_thetas,VIEW_DIMENSION,VIEW_SIZE,VIEW_ANGLE,DIR,TAG,FPS)
             filename = sprintf("WAM_model_%s",TAG);
             helper.createRecorder(DIR,filename,100,FPS);
             [N_jnts, N_rec] = size(list_of_thetas);
@@ -137,10 +138,11 @@ classdef WAM_model
             helper.newFigure(-1);
             title(filename);
             helper.textprogressbar('generating videos: ');
-            
+
             % plot and record:
             for i = 1:N_rec
                 clf("reset")
+                helper.setPlotSize(VIEW_DIMENSION);
                 view(VIEW_ANGLE)
                 utils.plot3DBoundary(VIEW_SIZE)
                 axis equal;

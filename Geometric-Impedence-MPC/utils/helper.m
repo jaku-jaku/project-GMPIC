@@ -73,7 +73,7 @@ classdef helper
             if close_window
                 close all;
                 global gFigureIndex;
-                gFigureIndex = 1;
+                gFigureIndex = 0;
             end
             global gdirectory;
             directory = sprintf("%s/%s", section, subsection);
@@ -123,14 +123,19 @@ classdef helper
             global gFigureIndex;
             f = nan;
             if index < 0
+                % auto incrementing figure indexing
                 gFigureIndex = gFigureIndex+1;
                 f = figure(gFigureIndex);
             elseif index == 1
+                % init figure with first index
                 gFigureIndex = 1;
                 f = figure(index);
             else
+                % create figure at the specified index
                 f = figure(index);
             end
+            % reset Here:
+            clf("reset");
         end
         function plotLineTime(x,y,c,style)
             l = plot(x,y,style,'Linewidth',1,'color',c);
@@ -141,6 +146,9 @@ classdef helper
             ha.Parent=fig.CurrentAxes;
             ha.X = [xy(1)+offset(1) xy(1)];
             ha.Y = [xy(2)+offset(2) xy(2)];
+        end
+        function setPlotSize(DIMENSION)
+            set(gcf,'units','points','position',[0, 0, DIMENSION(1), DIMENSION(2)]);
         end
         %% Video Rec:
         function createRecorder(FOLDER, FILE_NAME, QUALITY_, FPS_)
@@ -170,7 +178,7 @@ classdef helper
         end
         %% Save:
         function saveFigure(DIMENSION, FOLDER, FILE_NAME)
-            set(gcf,'units','points','position',[0, 0, DIMENSION(1), DIMENSION(2)]);
+            helper.setPlotSize(DIMENSION);
             EXP_PATH = sprintf('output/%s/%s.png', FOLDER, FILE_NAME);
             exportgraphics(gcf,EXP_PATH,'BackgroundColor','white');
             helper.logutil("PLOT SAVED @: "+ EXP_PATH);
