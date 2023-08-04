@@ -247,7 +247,7 @@ classdef Lie
             mat = [
                 R_SO3(:,:)', -R_SO3(:,:)' * hat_p; ...
                 zeros(3), R_SO3(:,:)'
-            ];
+            ]; % [Murray 2.58]
             % return: mat \in R^{6x6}
         end
         function mat = Ad_SE3_from_SO3xR3(R_SO3, p_R3)
@@ -259,7 +259,7 @@ classdef Lie
             mat = [
                 R_SO3(:,:), hat_p * R_SO3(:,:); ...
                 zeros(3), R_SO3(:,:)
-            ];
+            ]; % [Murray 2.58]
             % return: mat \in R^{6x6}
         end
         function mat = inv_Ad_SE3_from_SO3xR3(R_SO3, p_R3)

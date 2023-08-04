@@ -46,7 +46,7 @@ classdef utils
             plot3(p(1,:),p(2,:),p(3,:),sprintf('%s', style),'LineWidth',2)
 
             grid on;
-            axis equal;
+%             axis equal; 
             xlabel('X Axis')
             ylabel('Y Axis')
             zlabel('Z Axis')
@@ -221,6 +221,15 @@ classdef utils
             % end
             % Plot the co-ordinate frame of the link at the base:
             utils.plot_axis_screw_motion(screw_rotation,loc_of_link_frame,0.1,'-',link_name)
+        end
+        function plot3DBoundary(RECT_LIMIT)
+            x1 = RECT_LIMIT(1); x2 = RECT_LIMIT(2);
+            y1 = RECT_LIMIT(3); y2 = RECT_LIMIT(4);
+            z1 = RECT_LIMIT(5); z2 = RECT_LIMIT(6);
+            hold on;
+            plot3([x1,x2,x2,x1,x1],[y2,y2,y2,y2,y2],[z1,z1,z2,z2,z1],"r--");
+            plot3([x1,x1,x1,x1,x1],[y1,y2,y2,y1,y1],[z1,z1,z2,z2,z1],"g--");
+            plot3([x1,x1,x2,x2,x1],[y1,y2,y2,y1,y1],[z1,z1,z1,z1,z1],"b--");
         end
     end
 end
