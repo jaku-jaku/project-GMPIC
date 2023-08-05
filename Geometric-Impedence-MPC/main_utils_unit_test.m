@@ -247,8 +247,6 @@ tau = OpenChainMR.computed_torque_at_joints(theta, d_theta, e_int, g, ...
 validate.if_equivalent(tau, tau_target, "Computed Torque")
 
 
-
-
 %% --- 
 helper.endSection(AUTO_CLOSE);
 %% [EOF] ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== 

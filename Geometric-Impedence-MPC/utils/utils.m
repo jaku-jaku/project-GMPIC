@@ -1,7 +1,54 @@
 %% Utilities %%
 classdef utils
     methods(Static)
-        %% Plotting %%
+        %% 2D Plot:
+        function plot_time_data(data_cells, yLabels)
+            % assume: {{t(1...k),x(1..N,1...k),style,label},...}
+            N_cells = length(data_cells);
+            [N,Nk] = size(data_cells{1}.x);
+            t = tiledlayout(N,1);
+            t.TileSpacing = "tight";
+            legend_texts=[];
+            for j=1:N_cells
+                legend_texts=[legend_texts,data_cells{j}.label];
+            end
+            for i=1:N
+                nexttile; hold on; grid on;
+                for j=1:N_cells
+                    item = data_cells{j};
+                    plot(item.t,item.x(i,:), item.style);
+                end
+                ylabel(yLabels(i));
+                legend(legend_texts);
+            end
+            
+            xlabel("t [s]");
+        end
+        function plot_position_vs_t(cells_of_SE3s, list_of_labels, dT)
+            yLabels = ["x","y","z"];
+            N_data = length(cells_of_SE3s);
+            N_t = length(cells_of_SE3s{1});
+            ts = 0:dT:(N_t-1)*dT;
+            data_cells = cell(1,N_data);
+            style = "--"; % first one is reference
+            for i=1:N_data
+                xs = zeros(3,N_t);
+                for j=1:N_t
+                    xs(:,j) = cells_of_SE3s{i}{j}(1:3,4);
+                end
+                size(ts)
+                size(xs)
+                data_cells{i} = struct(...
+                    "t", ts,...
+                    "x", xs,...
+                    "style", style,...
+                    "label", list_of_labels(i) ...
+                 );
+                style = "-"; % else solid line
+            end
+            utils.plot_time_data(data_cells, yLabels);
+        end
+        %% Plotting 3D %%
         function plot_link( ...
             curret_config_sframe_SE3_base, ...
             link_relative_displacement_R3, ...
@@ -25,28 +72,31 @@ classdef utils
             % Plot the co-ordinate frame of the link at the base:
             utils.plot_axis(curret_config_sframe_SE3_base,0.1,style,link_base_frame_name)
         end
+        %% Trajectory:
         function plot_trajectory_from_SE3( ...
-            spatial_frame_SE3_, scale, style, if_label)
+            spatial_frame_SE3_, scale, style, if_label, axis_step)
             
             origin = [0;0;0;1];
             
             N = length(spatial_frame_SE3_);
             p = zeros(4,N);
-            for i=1:N
+            for i=1:axis_step:N
                 axis_name = "";
                 if if_label
                     axis_name = string(i);
                 end
                 T = spatial_frame_SE3_{i};
-                p(:,i) = T * origin;
                 utils.plot_axis( T, scale, style, axis_name )
             end
-
+            for i=1:N
+                T = spatial_frame_SE3_{i};
+                p(:,i) = T * origin;
+            end
             % plot line:
             plot3(p(1,:),p(2,:),p(3,:),sprintf('%s', style),'LineWidth',2)
 
             grid on;
-%             axis equal; 
+            % axis equal; 
             xlabel('X Axis')
             ylabel('Y Axis')
             zlabel('Z Axis')

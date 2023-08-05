@@ -137,11 +137,11 @@ classdef helper
             % reset Here:
             clf("reset");
         end
-        function plotLineTime(x,y,c,style)
+        function l=plotLineTime(x,y,c,style)
             l = plot(x,y,style,'Linewidth',1,'color',c);
             % scatter(x,y,60,linspace(1,250,length(x)),"filled");
         end
-        function annotate(fig,xy,offset,text,c)
+        function ha=annotate(fig,xy,offset,text,c)
             ha = annotation('textarrow','String',text, 'Color', c);
             ha.Parent=fig.CurrentAxes;
             ha.X = [xy(1)+offset(1) xy(1)];
@@ -235,6 +235,9 @@ classdef helper
             end
             str = sprintf("%s=[ %s ]\n",name,str);
         end
+        function str = float2str(data)
+            str = strrep(string(data),'.','_');
+        end
         %% Progress bar:
         function textprogressbar(c)
             % REF: https://www.mathworks.com/matlabcentral/fileexchange/28067-text-progress-bar
@@ -268,10 +271,10 @@ classdef helper
                 fprintf([c '\n']);
             elseif isnumeric(c)
                 % Progress bar - normal progress
-                c = floor(c);
-                percentageOut = [num2str(c) '%%'];
+                c_int = floor(c*100);
+                percentageOut = [num2str(c_int) '%%'];
                 percentageOut = [percentageOut repmat(' ',1,strPercentageLength-length(percentageOut)-1)];
-                nDots = floor(c/100*strDotsMaximum);
+                nDots = floor(c*strDotsMaximum);
                 dotOut = ['[' repmat('.',1,nDots) repmat(' ',1,strDotsMaximum-nDots) ']'];
                 strOut = [percentageOut dotOut];
                 

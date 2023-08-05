@@ -44,51 +44,101 @@ classdef WAM_model
             obj.m_theta = zeros(obj.N_JNTS_,1);
         end
         %% Time Dependent Functions:
-        function [obj,data] = dynamic_sim(obj, INIT_ANGLES, LIST_OF_JOINT_ANGLES)
+        function data = dynamic_sim(obj, INIT_ANGLES, LIST_OF_JOINT_ANGLES, dT, FB_Ctrl_CONFIG)
+            % Example Params:
+            %       - FB_Ctrl_CONFIG = struct("Kp", 1, "Ki", 0.8, "Kd", 1);
             [N_angles,N_sim] = size(LIST_OF_JOINT_ANGLES);
-            obj.assert_if_jnts(N_jnts);
+            obj.assert_if_jnts(N_angles);
             % set initial angles:
-            obj = obj.set_angle(INIT_ANGLES);
+            % obj = obj.set_angle(INIT_ANGLES);
             data = struct( ...
                 "theta",zeros(N_angles,N_sim+1), ...
                 "d_theta",zeros(N_angles,N_sim+1), ...
                 "dd_theta",zeros(N_angles,N_sim+1) ...
             );
             data.theta(:,1) = INIT_ANGLES;
+            d_theta_r_k_prev = 0;
+            dd_theta_r_k_prev = 0;
+
+            helper.textprogressbar('Stepping through simulations: ');
             % stepping through:
             for k=1:N_sim
-                % 1. joint request:
+                % --- 
+                % 1. Stepping:
+                % ---
+                % 1.0 current state:
+                theta_k = data.theta(:,k);
+                d_theta_k = data.d_theta(:,k);
+
+                % 1.1 joint reference:
                 theta_r_k = LIST_OF_JOINT_ANGLES(:,k);
                 theta_r_k = obj.filter_angles(theta_r_k);
                 theta_r_k = obj.joint_constraints(theta_r_k);
-                % 2. compute delta:
-                d_theta_r_k = theta_r_k - obj.m_theta;
+
+                % 1.2 compute delta reference:
+                d_theta_r_k = (theta_r_k - d_theta_r_k_prev)/dT;
+                dd_theta_r_k = (d_theta_r_k - dd_theta_r_k_prev)/dT;
                 
-                % 3. compute configuration dependent var:
-                % --- 
-                % Jacobi:
-                % --- 
-                obj.m_J_wam_spatial_MR = OpenChainMR.spatial_jacobian(obj.Slist, theta_r_k);
-                
-                % --- 
-                % dynamics:
+               % --- 
+                % 2. Controller:
                 % ---
-                % TODO: these disturbance can be injected somehow
-                force_at_jnt = zeros(N_angles, 1); % [NOTE: zero external force]d
-                force_at_EE = zeros(6, 1);  % [NOTE: zero external force] : [Fx; Fy; Fz; tx; ty; tz];
-                % compute config-dependent dyn variables:
-                m_mass_MR = OpenChainMR.mass_matrix(theta_r_k, obj.Mlist, obj.Glist, obj.Slist);
-                m_gravity_MR = OpenChainMR.gravity_forces(theta_r_k, obj.GRAVITY, obj.Mlist, obj.Glist, obj.Slist);
-                m_Coriolis_MR = OpenChainMR.vel_qualdratic_force(theta_r_k, d_theta_r_k, obj.Mlist, obj.Glist, obj.Slist);
-                m_EE_force_MR = OpenChainMR.EE_Force_to_Joint_Torques(theta_r_k, force_at_EE, obj.Mlist, obj.Glist, obj.Slist);
-                % compute dynamics:
-                dd_theta_k = m_mass_MR \ (force_at_jnt - m_Coriolis_MR - m_gravity_MR - m_EE_force_MR);
+                % 2.1 TODO: these disturbance can be injected somehow
+                % force_at_jnt = zeros(N_angles, 1); % [NOTE: zero external force]d
+                % force_at_EE = zeros(6, 1);  % [NOTE: zero external force] : [Fx; Fy; Fz; tx; ty; tz];
+                force_at_EE = [1,1,1,1,1,1]';
+
+                % 2.2 feedback linearization controller:
+                e_int = (theta_r_k - theta_k) * dT; % linear approx (1-Step Euler)
+                T_jnt = obj.feedback_linearization_controller( ...
+                    theta_k, d_theta_k, e_int,...
+                    theta_r_k, d_theta_r_k, dd_theta_r_k,...
+                    FB_Ctrl_CONFIG.Kp, FB_Ctrl_CONFIG.Ki, FB_Ctrl_CONFIG.Kd);
+                
+                % --- 
+                % 3. Forward sim:
+                % ---
+                % 3.2 compute dynamics: 
+                dd_theta_k = obj.forward_dynamics(theta_k, d_theta_k, force_at_EE, T_jnt);
+
+                % 3.3 integrate to next time step (Approx.): (1-Step Euler)
+                % TODO: Alternative Integrations: n-Euler, Ode15, RK 
+                d_theta_k_next = d_theta_k + dd_theta_k * dT;
+                theta_k_next = theta_k + d_theta_k_next * dT;
+                
+                % joint constraints:
+                theta_k_next = obj.filter_angles(theta_k_next);
+                theta_k_next = obj.joint_constraints(theta_k_next);
 
                 % update:
-                data.theta(:,1) = theta_r_k;
-                data.d_theta(:,1) = d_theta_r_k;
-                data.dd_theta(:,1) = dd_theta_k;
+                data.theta(:,k+1) = theta_k_next;
+                data.d_theta(:,k+1) = d_theta_k_next;
+                data.dd_theta(:,k) = dd_theta_k;
+
+                % cache for next itr:
+                d_theta_r_k_prev = theta_r_k;
+                dd_theta_r_k_prev = d_theta_r_k;
+                
+                % kick the dog:
+                helper.textprogressbar(k/N_sim);
             end
+            helper.textprogressbar('done');
+        end
+        %% Configuration dependent:
+        function T_jnt = feedback_linearization_controller( obj, ...
+                theta, d_theta, e_int, r_theta, r_d_theta, r_dd_theta, Kp, Ki, Kd)
+            T_jnt = OpenChainMR.computed_torque_at_joints(theta, d_theta, e_int, ... 
+                                        obj.GRAVITY, obj.Mlist, obj.Glist, obj.Slist, ...
+                                        r_theta, r_d_theta, r_dd_theta, ...
+                                        Kp, Ki, Kd);
+        end
+        function dd_theta = forward_dynamics(obj, theta, d_theta, F_EE_twist, T_jnt)
+            % compute config-dependent dyn variables:
+            m_mass_MR = OpenChainMR.mass_matrix(theta, obj.Mlist, obj.Glist, obj.Slist);
+            m_gravity_MR = OpenChainMR.gravity_forces(theta, obj.GRAVITY, obj.Mlist, obj.Glist, obj.Slist);
+            m_Coriolis_MR = OpenChainMR.vel_qualdratic_force(theta, d_theta, obj.Mlist, obj.Glist, obj.Slist);
+            m_EE_force_MR = OpenChainMR.EE_Force_to_Joint_Torques(theta, F_EE_twist, obj.Mlist, obj.Glist, obj.Slist);
+            % compute dynamics:
+            dd_theta = m_mass_MR \ (T_jnt - m_Coriolis_MR - m_gravity_MR - m_EE_force_MR);
         end
         %% Set Functions:
         function obj = set_angle(obj, JOINT_ANGLES)
@@ -131,7 +181,7 @@ classdef WAM_model
             end
         end
         function animate_with(obj,list_of_thetas,VIEW_DIMENSION,VIEW_SIZE,VIEW_ANGLE,DIR,TAG,FPS)
-            filename = sprintf("WAM_model_%s",TAG);
+            filename = sprintf("WAM_model_animated_%s",TAG);
             helper.createRecorder(DIR,filename,100,FPS);
             [N_jnts, N_rec] = size(list_of_thetas);
             obj.assert_if_jnts(N_jnts);
@@ -152,14 +202,12 @@ classdef WAM_model
                 hold off;
                 drawnow;
                 helper.recordRecorder();
-                helper.textprogressbar(i);
+                helper.textprogressbar(i/N_rec);
                 pause(0.000001);
             end
             helper.textprogressbar('done');
             helper.loginfo(sprintf("Done Recording @ %s",filename))
             helper.terminateRecorder();
-            
-            helper.textprogressbar('terminated');
         end
     end
     %% Here are the model independent functions:
@@ -185,7 +233,7 @@ classdef WAM_model
             joint_limits_ = zeros(N_links,2); 
             G_SE3_ = cell(1,N_links); 
             % spatial:
-            xi_R6_s_ = cell(1,N_links); 
+            xi_R6_s_ = cell(1,N_links);
             G_SE3_s_ = cell(1,N_links);
             % moment:
             M_R6x6_ = cell(1,N_links); 

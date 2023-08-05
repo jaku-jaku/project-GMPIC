@@ -214,7 +214,7 @@ classdef Lie
             [R_SO3, p_R3] = Lie.SO3xR3_from_SE3(mat_SE3);
             hat_omega = Lie.log_so3_from_SO3(R_SO3);
             if isequal(hat_omega, zeros(3))
-                mat_se3 = [zeros(3), T(1: 3, 4); 0, 0, 0, 0];
+                mat_se3 = [zeros(3), mat_SE3(1: 3, 4); 0, 0, 0, 0];
             else
                 theta = acos((trace(R_SO3) - 1) / 2);
                 mat_se3 = [hat_omega, (eye(3) - hat_omega / 2 ...

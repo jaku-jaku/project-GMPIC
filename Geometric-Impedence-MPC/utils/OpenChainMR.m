@@ -160,11 +160,20 @@ classdef OpenChainMR
             end
         end
         function JTFtip = EE_Force_to_Joint_Torques(theta, Ftip, Mlist, Glist, Slist)
+            % @EndEffectorForces
+            % *** CHAPTER 8: DYNAMICS OF OPEN CHAINS 
+            % Takes thetalist: A list of joint variables,
+            %       Ftip: Spatial force applied by the end-effector expressed in frame 
+            %             {n+1},
+            %       Mlist: List of link frames i relative to i-1 at the home position,
+            %       Glist: Spatial inertia matrices Gi of the links,
+            %       Slist: Screw axes Si of the joints in a space frame, in the format 
+            %              of a matrix with screw axes as the columns,
             % return: joint forces required to create the EE force Ftip
             % EndEffectorForces.m
             % Returns JTFtip: The joint forces and torques required only to create the end-effector force Ftip.
             n = size(theta, 1);
-            JTFtip = OpenChainMR.inverse_dynamics(zeros(n, 1), zeros(n, 1), ...
+            JTFtip = OpenChainMR.inverse_dynamics(theta, zeros(n, 1), zeros(n, 1), ...
                                     [0; 0; 0], Ftip, Mlist, Glist, Slist);
         end
         function Tau = computed_torque_at_joints(theta, d_theta, e_int, g, ... 
