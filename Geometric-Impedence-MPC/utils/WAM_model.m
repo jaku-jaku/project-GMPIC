@@ -44,7 +44,7 @@ classdef WAM_model
             obj.m_theta = zeros(obj.N_JNTS_,1);
         end
         %% Time Dependent Functions:
-        function data = dynamic_sim(obj, INIT_ANGLES, LIST_OF_JOINT_ANGLES, dT, FB_Ctrl_CONFIG)
+        function data = dynamic_sim(obj, INIT_ANGLES, LIST_OF_JOINT_ANGLES, LIST_OF_F_EE, dT, FB_Ctrl_CONFIG)
             % Example Params:
             %       - FB_Ctrl_CONFIG = struct("Kp", 1, "Ki", 0.8, "Kd", 1);
             [N_angles,N_sim] = size(LIST_OF_JOINT_ANGLES);
@@ -85,7 +85,7 @@ classdef WAM_model
                 % 2.1 TODO: these disturbance can be injected somehow
                 % force_at_jnt = zeros(N_angles, 1); % [NOTE: zero external force]d
                 % force_at_EE = zeros(6, 1);  % [NOTE: zero external force] : [Fx; Fy; Fz; tx; ty; tz];
-                force_at_EE = [1,1,1,1,1,1]';
+                force_at_EE = LIST_OF_F_EE(:,k);
 
                 % 2.2 feedback linearization controller:
                 e_int = (theta_r_k - theta_k) * dT; % linear approx (1-Step Euler)
