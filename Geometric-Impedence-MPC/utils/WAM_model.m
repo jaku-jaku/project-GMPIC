@@ -3,7 +3,9 @@ classdef WAM_model
         GRAVITY = [0, 0, 9.81]';
     end
     properties
+        % --- 
         % init values:
+        % --- 
         WAM_Spatial_0
         xi_R6_s_
         G_SE3_s_
@@ -16,7 +18,9 @@ classdef WAM_model
         Slist 
         Mlist
         Glist
+        % --- 
         % dynamic values:
+        % --- 
 %         m_J_wam_spatial_MR
 %         m_mass_MR
 %         m_gravity_MR
