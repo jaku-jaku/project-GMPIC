@@ -110,27 +110,30 @@ classdef OpenChain
                 J_s_st(:,i) =  Ad_1_i * xi_R6_1_{i};
             end
         end
-        function M_R6x6_spatial_ = compute_Spatial_Inertia(M_R6x6_, g0_st_SE3_)
+        function M_R6x6_prime_ = compute_Spatial_Inertia(M_R6x6_, g0_st_SE3_)
             % @M_R6x6_: Moments at the link joint output frame
             % USAGE: M_R6x6_spatial_ = OpenChain.compute_Spatial_Inertia(M_R6x6_, G_SE3_s_); % [Murray 4.28]
             N_jnts = length(g0_st_SE3_);
-            M_R6x6_spatial_ = cell(1,N_jnts);
-            for i=1:N_jnts
+            M_R6x6_prime_ = cell(1,N_jnts);
+            for i=1:N_jnts % for each link [Murray 4.27]
                 % - inverse adjoint for zero config
                 inv_Ad_g0_sl_i = Lie.inv_Ad_SE3_from_SE3(g0_st_SE3_{i});
                 % - Inertia of the ith link reflected into the base spatial frame:
                 % [4.28, Murray]
-                M_R6x6_spatial_{i} = inv_Ad_g0_sl_i' * M_R6x6_{i} * inv_Ad_g0_sl_i; 
+                M_R6x6_prime_{i} = inv_Ad_g0_sl_i' * M_R6x6_{i} * inv_Ad_g0_sl_i;
             end
         end
         function M_RNxN_t_ = compute_M(J_b_sl_, M_R6x6_)
+            %% A different implementation, to be verified
             N_links = length(M_R6x6_);
             M_RNxN_t_ = zeros(N_links,N_links);
             for i=1:N_links
+                % [Murray 4.19]
                 M_RNxN_t_ = M_RNxN_t_ + J_b_sl_{i}' * M_R6x6_{i} * J_b_sl_{i};
             end
         end
         function M_RNxN_t_ = compute_M_v2(xi_R6_1_, exp_xi_theta_in_SE3_1_, g0_st_SE3_, M_R6x6_)
+            %% A murray implementation, to be verified
             N_jnts = length(xi_R6_1_);
             M_RNxN_t_ = zeros(N_jnts,N_jnts);
         
@@ -152,12 +155,10 @@ classdef OpenChain
                     end
                 end
             end
+            
+            % [Murray 4.28]
+            M_i_prime_ = OpenChain.compute_Spatial_Inertia(M_R6x6_, g0_st_SE3_);
 
-            inv_Ad_g0_sl_i = Lie.inv_Ad_SE3_from_SE3(g0_st_SE3_{i});
-            M_i_prime_ = cell(1,N_jnts);
-            for i=1:N_jnts % for each link [Murray 4.27]
-                M_i_prime_{i} = inv_Ad_g0_sl_i' * M_R6x6_{i} * inv_Ad_g0_sl_i;
-            end
             % [xi_N' ... xi_1']:
             for i=1:N_jnts % for each link [Murray 4.29]
                 for j=1:N_jnts

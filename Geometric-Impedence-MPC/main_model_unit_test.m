@@ -42,6 +42,11 @@ valid_jnts_filter = eye(N_jnts); % <--- assume all joints active by default
 % [placeholder]:
 joint_limits_ = cell(1,N_links); 
 G_SE3_ = cell(1,N_links); 
+% world_coord-->0 (wam base):
+w_joint_axis_0 = [0;0;1]; 
+G_SE3_s_0 = WAM_Spatial_0;
+w_R3_s_0 = G_SE3_s_0(1:3,1:3) * w_joint_axis_0;
+xi_R6_s_0 = RBT.twist_R6_from_axis_point(w_R3_s_0, G_SE3_s_0(1:3,4));
 % spatial:
 xi_R6_s_ = cell(1,N_links); 
 G_SE3_s_ = cell(1,N_links);
@@ -73,7 +78,7 @@ for i = 1:N_links
     % 4. SE3 operation:
     % - propagate base frame TF (i-1) to tip frame (i) in current link:
     if i == 1
-        G_SE3_s_{i} = WAM_Spatial_0 * G_SE3_{i}; % <--- initial wam base joint tip frame (J1)
+        G_SE3_s_{i} = G_SE3_s_0 * G_SE3_{i}; % <--- initial wam base joint tip frame (J1)
     else
         G_SE3_s_{i} = G_SE3_s_{i-1} * G_SE3_{i}; % <--- Propagation
     end
@@ -95,39 +100,36 @@ end
 xi_R6_s = cat(2,xi_R6_s_{:})
 
 %% [iterating links backward]:
-G_SE3_rvr_ = cell(1,N_links);
 G_SE3_b_ = cell(1,N_links);
 xi_R6_b_ = cell(1,N_links);
 
-G_TOOL_0 = eye(4);
-
-xi_R6_b_{N_links} = [0,0,0,0,0,1]';
+G_TOOL_0 = eye(4); % the end frame is the body/tool frame (the identity)
 % todo: please make sure the produced link can provide same jacobian
-for i = N_links:-1:2
-    helper.loginfo(sprintf("> Indexing Links @ %d-->%d",i+1,i));
-    % 1. obtain relative params for current link (i)-->(i+1)
-    G_SE3_rvr_{i} = RBT.inverse_SE3(G_SE3_{i}); % relative RBT inversed
-    % - propagate base frame inverse TF (i+1) to tip frame (i) in current link:
+for i = N_links:-1:1
+    helper.loginfo(sprintf("> Indexing Links @ %d-->%d",i,i-1));
+    % - propagate:
     if i == N_links
-        G_SE3_b_{i} =  G_TOOL_0 * G_SE3_rvr_{i};
+        G_SE3_b_{i} = G_TOOL_0;
     else
-        G_SE3_b_{i} =  G_SE3_b_{i+1} * G_SE3_rvr_{i}; % <--- Propagation
+        G_SE3_b_{i} = G_SE3_b_{i+1} * RBT.inverse_SE3(G_SE3_{i+1}); 
     end
 
     % - obtain global representation of the joint rotation axis
     w_joint_axis_i = common.WAM(i).tip_frame_revolute_joint.axis';
-    w_R3_b_i = G_SE3_b_{i}(1:3,1:3) * w_joint_axis_i; 
     
     % - twist:
-    xi_R6_b_{i-1} = RBT.twist_R6_from_axis_point(w_R3_b_i, G_SE3_b_{i}(1:3,4));
+    w_R3_b_i = G_SE3_b_{i}(1:3,1:3) * w_joint_axis_i; 
+    xi_R6_b_{i} = RBT.twist_R6_from_axis_point(w_R3_b_i, G_SE3_b_{i}(1:3,4));
 end
-
+G_SE3_b_0 = G_SE3_b_{1} * RBT.inverse_SE3(G_SE3_{1});
+w_R3_b_0 = G_SE3_b_0(1:3,1:3) * w_joint_axis_0; 
+xi_R6_b_0 = RBT.twist_R6_from_axis_point(w_R3_b_0, G_SE3_b_0(1:3,4));
 xi_R6_b = cat(2,xi_R6_b_{:})
 
 %% [INIT Jnt Angles]:
 % --- 
-JOINT_ANGLE = zeros(1,N_jnts)';
-% JOINT_ANGLE = pi/4 * valid_jnts_filter * ones(1,N_jnts)';
+% JOINT_ANGLE = zeros(1,N_jnts)';
+JOINT_ANGLE = pi/4 * valid_jnts_filter * ones(1,N_jnts)';
 % JOINT_ANGLE(3) = 0.2;
 
 %% Body) ===== ===== ===== ===== ===== ===== =====:
@@ -138,19 +140,19 @@ DIR = helper.declareSection("test", "body", SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WI
 % Body FK:
 % --- 
 Blist = cat(2, xi_R6_b_{:});
-% G_SE3_wam_body_MR = OpenChainMR.body_forward_kinematics(G_SE3_b_{1}, Blist, JOINT_ANGLE)
-% G_SE3_wam_body_MR_2 = G_SE3_b_{1} * OpenChainMR.spatial_forward_kinematics(eye(4), Blist, JOINT_ANGLE) 
-% % [NOTE]: as expected, they are equivalent
-% validate.if_equivalent(G_SE3_wam_body_MR, G_SE3_wam_body_MR_2, "MR: spatial vs body function");
-% % equivalent ours:
-% exp_xi_theta_in_SE3_body_ = OpenChain.batch_screw_SE3_from_twist_angle_R6xR(xi_R6_b_, JOINT_ANGLE);
-% G_SE3_wam_body_MR_ours = OpenChain.compute_Body_FK(exp_xi_theta_in_SE3_body_,G_SE3_b_{1})
-% % Test:
-% validate.if_equivalent(G_SE3_wam_body_MR, G_SE3_wam_body_MR_ours, "MR vs our function");
-% % more:
-% G_SE3_wam_body_MR_ours_ = OpenChain.compute_Body_FK_for_all_joints(exp_xi_theta_in_SE3_body_, G_SE3_b_);
-% % Test:
-% validate.if_equivalent(G_SE3_wam_body_MR_ours_{1}, G_SE3_wam_body_MR_ours, "our batch body function");
+G_SE3_wam_body_MR = OpenChainMR.body_forward_kinematics(G_SE3_b_{1}, Blist, JOINT_ANGLE)
+G_SE3_wam_body_MR_2 = G_SE3_b_{1} * OpenChainMR.spatial_forward_kinematics(eye(4), Blist, JOINT_ANGLE) 
+% [NOTE]: as expected, they are equivalent
+validate.if_equivalent(G_SE3_wam_body_MR, G_SE3_wam_body_MR_2, "MR: spatial vs body function");
+% equivalent ours:
+exp_xi_theta_in_SE3_body_ = OpenChain.batch_screw_SE3_from_twist_angle_R6xR(xi_R6_b_, JOINT_ANGLE);
+G_SE3_wam_body_MR_ours = OpenChain.compute_Body_FK(exp_xi_theta_in_SE3_body_,G_SE3_b_{1})
+% Test:
+validate.if_equivalent(G_SE3_wam_body_MR, G_SE3_wam_body_MR_ours, "MR vs our function");
+% more:
+G_SE3_wam_body_MR_ours_ = OpenChain.compute_Body_FK_for_all_joints(exp_xi_theta_in_SE3_body_, G_SE3_b_);
+% Test:
+validate.if_equivalent(G_SE3_wam_body_MR_ours_{1}, G_SE3_wam_body_MR_ours, "our batch body function");
 
 % --- 
 % Body Jacobian:
@@ -197,56 +199,56 @@ validate.if_equivalent(J_wam_spatial_MR, J_wam_spatial_ours, "Spatial Jacobian")
 % --- 
 % body jacobian from spatial:
 % --- 
-ad_gst = Lie.Ad_SE3_from_SE3(G_SE3_wam_spatial_ours);
+Ad_gst = Lie.Ad_SE3_from_SE3(G_SE3_wam_spatial_ours);
 % ours w/ spatial:
 J_wam_body_ours_v2 = OpenChain.compute_Body_Jacobian_from_Spatial(xi_R6_s_, exp_xi_theta_in_SE3_, G_SE3_s_{end})
-J_wam_spatial_from_body = ad_gst * J_wam_body_ours_v2; % [Murray 3.56]
+J_wam_spatial_from_body = Ad_gst * J_wam_body_ours_v2; % [Murray 3.56]
 validate.if_equivalent(J_wam_spatial_from_body, J_wam_spatial_ours, "J_spatial = Ad_gst * J_body [Murray 3.56]")
 validate.if_equivalent(J_wam_body_ours_v2, J_wam_body_ours, "J_body_from_spatial = J_body")
 
 % --- 
 % body jacobian for all links:
 % --- 
-J_b_sl_ = OpenChain.compute_Body_Jacobian_for_all_links_from_Spatial(xi_R6_s_, exp_xi_theta_in_SE3_, G_SE3_s_)
+J_b_sl_ = OpenChain.compute_Body_Jacobian_for_all_links_from_Spatial(xi_R6_s_, exp_xi_theta_in_SE3_, G_SE3_s_);
 validate.if_equivalent(J_b_sl_{end}, J_wam_body_ours, "J_body_{end} = J_body")
-
 for i=1:N_jnts
     J_b_sl_end_i = OpenChain.compute_Body_Jacobian_from_Spatial({xi_R6_s_{1:i}}, exp_xi_theta_in_SE3_, G_SE3_s_{i});
     validate.if_equivalent(J_b_sl_{i}(:,1:i), J_b_sl_end_i, sprintf("J_body_{%d} = J_body_from_spatial(1:%d)",i,i))
 end
 
-
 % --- 
 % mass matrix:
 % --- 
-Mlist = cat(3, eye(4), G_SE3_{:});
+Mlist = cat(3, G_SE3_s_0, G_SE3_{:});
 Glist = cat(3, M_R6x6_{:});
 mass_MR = OpenChainMR.mass_matrix(JOINT_ANGLE, Mlist, Glist, Slist)
-gravity_MR = OpenChainMR.gravity_forces(JOINT_ANGLE, [0,0,9.81], Mlist, Glist, Slist)
+% gravity_MR = OpenChainMR.gravity_forces(JOINT_ANGLE, [0,0,9.81], Mlist, Glist, Slist)
 
 % --- 
 % Dynamic Parameters:
 % --- 
 M_RNxN_t_ = OpenChain.compute_M(J_b_sl_, M_R6x6_)
 M_RNxN_t_v2_ = OpenChain.compute_M_v2(xi_R6_s_, exp_xi_theta_in_SE3_, G_SE3_s_, M_R6x6_)
+validate.if_equivalent(M_RNxN_t_v2_, M_RNxN_t_, "M_RNxN_t_ == M_RNxN_t_v2_")
 % TODO: our Moments computation does not seem to match with Open MR :(
-%validate.if_equivalent(M_RNxN_t_, mass_MR, "mass_MR == M_RNxN_t_")
+% validate.if_equivalent(M_RNxN_t_, mass_MR, "mass_MR == M_RNxN_t_")
+
 
 %% --- 
 % eMPC:
 % --- 
-% compute the configuration error
-[psiX, psiXse] = Error.ConfgError(G_SE3_wam_spatial_ours);
-xi0 = Lie.vee_R6_from_se3(G_SE3_wam_spatial_ours)';
-xiRef  = [0,0,1,2,0,0.2]';
-dxiRef = rand(6,1);
-adjxi = Lie.ad_se3_from_R6(xi0);
-N =6;
-Mr = pinv(J_wam_spatial_ours)'*mass_MR*pinv(J_wam_spatial_ours);
-Gr = pinv(J_wam_spatial_ours)'*gravity_MR;
-% Run error MPC
-helper.includeCasadi();
-[U,err,X] = Error.eMPC(N,xi0,xiRef, dxiRef, adjxi, Mr, Gr)
+% % compute the configuration error
+% [psiX, psiXse] = Error.ConfgError(G_SE3_wam_spatial_ours);
+% xi0 = Lie.vee_R6_from_se3(G_SE3_wam_spatial_ours)';
+% xiRef  = [0,0,1,2,0,0.2]';
+% dxiRef = rand(6,1);
+% adjxi = Lie.ad_se3_from_R6(xi0);
+% N =6;
+% Mr = pinv(J_wam_spatial_ours)'*mass_MR*pinv(J_wam_spatial_ours);
+% Gr = pinv(J_wam_spatial_ours)'*gravity_MR;
+% % Run error MPC
+% helper.includeCasadi();
+% [U,err,X] = Error.eMPC(N,xi0,xiRef, dxiRef, adjxi, Mr, Gr)
 
 
 %% PLOT) ===== ===== ===== ===== ===== ===== =====:
@@ -263,7 +265,7 @@ ax_1_1 = nexttile();
 
 % plot base link:
 utils.plot_link( ...
-    WAM_Spatial_0, ...
+    G_SE3_s_0, ...
     common.WAM(1).tip_frame_transformation.q', ...
     common.WAM(1).base_frame, ...
     'k','--');

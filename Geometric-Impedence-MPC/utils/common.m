@@ -1,6 +1,7 @@
 classdef common
     properties(Constant)
         %% [ WAM constant ]:
+        GRAVITY = [0, 0, 9.81]'; 
         % - numerical:
         L_SHOULDER    =0.346;
         L_ARM         =0.55;
@@ -15,6 +16,7 @@ classdef common
         %% [ SUMMIT Model ]:
         SUMMIT_INIT_POSE = eye(4);
         dP_SUMMIT_WAM = [ 0.14 0 0.405 ]; 
+        % dP_SUMMIT_WAM = [ 0 0 0 ];
         % - configs:
         INIT_JOINT_HOME = [0 0 0 0 0 0 0];
         %% [ WAM Model ]:

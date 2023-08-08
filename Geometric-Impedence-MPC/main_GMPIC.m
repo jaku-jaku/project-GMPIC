@@ -27,7 +27,7 @@ FB_Ctrl_CONFIG = struct("Kp", 0.8, "Ki", 0.8, "Kd", 1);
 MODES_EE_F = ["Zero_F_EE","Const_F_EE","Dynamic_F_EE"];
 MODES_TRAJ = ["Steady","Const_dTheta","Dynamic_dTheta"];
 
-MODE = [MODES_EE_F(1), MODES_TRAJ(2)];
+MODE = [MODES_EE_F(3), MODES_TRAJ(3)];
 Exp_Title = strcat(MODE(:));
 
 % - compute tag:
@@ -41,16 +41,14 @@ helper.endSection(AUTO_CLOSE);
 DIR = helper.declareSection("gmpic", Exp_Title, SAVE_CONSOLE, CLEAR_OUTPUT, CLOSE_WINDOW);
 % --- 
 helper.logtitle("WAM INIT")
-model = WAM_model();
 helper.newFigure(-1);
-model.plot_now();
+c0 = WAM_model.model_init_zero_config(); 
+WAM_model.plot_zero_config(c0);
 utils.plot3DBoundary(VIEW_BNDRY);
 view(VIEW_ANGLE)
 axis equal;
 helper.saveFigure(VIEW_DIMENSION, DIR, "model");
 
-% model = model.set_angles([ 0, -2, 0, 3.13, 0, 0, 0 , 0]');
-% model.plot_now();
 
 %% gen angles:
 helper.logtitle("Generate Joint Trajectory Ref")
@@ -69,8 +67,8 @@ for i=2:N_end
             list_of_thetas(:,i) = [-2.6+2*pi*sin(i/100*2*pi), -pi/100*i, 0, 0, 0, 0, 0, 0 ]';
     end
     % apply input constraints:
-    list_of_thetas(:,i) = model.filter_angles(list_of_thetas(:,i));
-    list_of_thetas(:,i) = model.joint_constraints(list_of_thetas(:,i));
+    list_of_thetas(:,i) = WAM_model.filter_angles(c0,list_of_thetas(:,i));
+    list_of_thetas(:,i) = WAM_model.joint_constraints(c0,list_of_thetas(:,i));
     % inject disturbance at the EE:
     switch MODE(1)
         case "Zero_F_EE"
@@ -82,33 +80,33 @@ for i=2:N_end
     end
 end
 list_of_thetas(:,1)=list_of_thetas(:,2);
-model.set_angle(list_of_thetas(:,1));
 %% compute fwd traj:
 helper.logtitle("Compute FWD Traj")
-spatial_frame_SE3_ = model.compute_EE_trajectory_with(list_of_thetas);
+spatial_frame_SE3_ = WAM_model.compute_EE_trajectory_with(c0,list_of_thetas);
 
 % plot:
 helper.newFigure(-1);
 utils.plot_trajectory_from_SE3(spatial_frame_SE3_,0.1, "-", false, 10);
 utils.plot3DBoundary(VIEW_BNDRY);
-model.plot_now();
+WAM_model.plot_at(c0, list_of_thetas(:,1));
 view(VIEW_ANGLE)
 axis equal;
 helper.saveFigure(VIEW_DIMENSION, DIR, "reference_trajectory");
 
 
-%% compute trajectory after feedback linearization controller with dynamics:
+%% compute trajectory after feedback linearizd
+% ation controller with dynamics:
 helper.logtitle("Compute Dynamics Controller")
-data = model.dynamic_sim(list_of_thetas(:,1), list_of_thetas(:,2:end), ...
+data = WAM_model.dynamic_sim(c0, list_of_thetas(:,1), list_of_thetas(:,2:end), ...
     list_of_force_at_EE, dT, FB_Ctrl_CONFIG);
 % compute fwd traj:
-spatial_frame_SE3_fb_ = model.compute_EE_trajectory_with(data.theta);
+spatial_frame_SE3_fb_ = WAM_model.compute_EE_trajectory_with(c0, data.theta);
 % plot:
 helper.newFigure(-1);
 utils.plot_trajectory_from_SE3(spatial_frame_SE3_,0.1, "--", false, 10);
 utils.plot_trajectory_from_SE3(spatial_frame_SE3_fb_,0.1, "-", false, 10);
 utils.plot3DBoundary(VIEW_BNDRY);
-model.plot_now();
+WAM_model.plot_at(c0, list_of_thetas(:,1));
 view(VIEW_ANGLE)
 axis equal;
 file_name = strcat("trajectory_fb_controller_", FB_CTRL_TAG);
@@ -125,7 +123,7 @@ helper.saveFigure(VIEW_DIMENSION, DIR, strcat("EE_position_",FB_CTRL_TAG));
 %% animate:
 pause(0.00001)
 helper.logtitle("Animating ...")
-model.animate_with(data.theta, VIEW_DIMENSION, VIEW_BNDRY, VIEW_ANGLE, DIR, FB_CTRL_TAG, FPS);
+WAM_model.animate_with(c0, data.theta, VIEW_DIMENSION, VIEW_BNDRY, VIEW_ANGLE, DIR, FB_CTRL_TAG, FPS);
 
 % --- 
 helper.endSection(AUTO_CLOSE);
