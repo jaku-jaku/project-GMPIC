@@ -300,7 +300,8 @@ classdef WAM_model
             
             % convert to MR:
             c0.Slist = cat(2, c0.xi_R6_s_{:});
-            c0.Mlist = cat(3, c0.G_SE3_s_0, c0.G_SE3_{:});
+            c0.Mlist = cat(3, eye(4), c0.G_SE3_{:});
+            % c0.Mlist = cat(3, c0.G_SE3_s_0, c0.G_SE3_{:}); % <-- TODO: investiage
             c0.Glist = cat(3, c0.M_R6x6_{:});
             c0.Blist = cat(2, c0.xi_R6_b_{:});
 

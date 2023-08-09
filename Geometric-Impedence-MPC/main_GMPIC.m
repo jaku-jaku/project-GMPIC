@@ -12,7 +12,7 @@ helper.logtitle("Initialize");
 SAVE_CONSOLE = false;
 CLEAR_OUTPUT = false;
 CLOSE_WINDOW = true; % pre-closing
-AUTO_CLOSE   = false;
+AUTO_CLOSE   = true;
 
 helper.createFolder("output/test", false);
 helper.setLogLevel("error")         % [ all, debug, error, info ]
@@ -23,12 +23,12 @@ VIEW_ANGLE = [45 10];
 VIEW_DIMENSION = [400,400];
 % --- 
 % - Simulation Params:
-FB_Ctrl_CONFIG = struct("Kp", 0.8, "Ki", 0.8, "Kd", 1);
+FB_Ctrl_CONFIG = struct("Kp", 1, "Ki", 0.8, "Kd", 1);
 MODES_EE_F = ["Zero_F_EE","Const_F_EE","Dynamic_F_EE"];
 MODES_TRAJ = ["Steady","Const_dTheta","Dynamic_dTheta"];
 
-MODE = [MODES_EE_F(3), MODES_TRAJ(3)];
-Exp_Title = strcat(MODE(:));
+MODE = [MODES_EE_F(2), MODES_TRAJ(3)];
+Exp_Title = strcat(MODE(1),"+",MODE(2));
 
 % - compute tag:
 FB_CTRL_TAG = sprintf("P[%s]I[%s]D[%s]",...
