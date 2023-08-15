@@ -159,15 +159,24 @@ classdef OpenChainMR
                                     Glist, Slist);
             end
         end
-        function JTFtip = force_at_EE(theta, Ftip, Mlist, Glist, Slist)
+        function JTFtip = EE_Force_to_Joint_Torques(theta, Ftip, Mlist, Glist, Slist)
+            % @EndEffectorForces
+            % *** CHAPTER 8: DYNAMICS OF OPEN CHAINS 
+            % Takes thetalist: A list of joint variables,
+            %       Ftip: Spatial force applied by the end-effector expressed in frame 
+            %             {n+1},
+            %       Mlist: List of link frames i relative to i-1 at the home position,
+            %       Glist: Spatial inertia matrices Gi of the links,
+            %       Slist: Screw axes Si of the joints in a space frame, in the format 
+            %              of a matrix with screw axes as the columns,
             % return: joint forces required to create the EE force Ftip
             % EndEffectorForces.m
             % Returns JTFtip: The joint forces and torques required only to create the end-effector force Ftip.
             n = size(theta, 1);
-            JTFtip = OpenChainMR.inverse_dynamics(zeros(n, 1), zeros(n, 1), ...
+            JTFtip = OpenChainMR.inverse_dynamics(theta, zeros(n, 1), zeros(n, 1), ...
                                     [0; 0; 0], Ftip, Mlist, Glist, Slist);
         end
-        function Tau = force_computed_at_EE(theta, d_theta, e_int, g, ... 
+        function Tau = computed_torque_at_joints(theta, d_theta, e_int, g, ... 
                                         Mlist, Glist, Slist, ...
                                         r_theta, r_d_theta, r_dd_theta, ...
                                         Kp, Ki, Kd)
@@ -298,6 +307,89 @@ classdef OpenChainMR
                 err = norm(Vb(1: 3)) > e_v || norm(Vb(4: 6)) > e_w;
             end
             success = ~ err;
+        end
+        function [thetamat, d_thetamat] ...
+            = forward_dynamics_trajectory(theta, d_theta, taumat, g, ...
+                                        Ftipmat, Mlist, Glist, Slist, dt, ...
+                                        intRes)
+            % *** CHAPTER 8: DYNAMICS OF OPEN CHAINS ***
+            % Takes theta: n-vector of initial joint variables,
+            %       d_theta: n-vector of initial joint rates,
+            %       taumat: An N x n matrix of joint forces/torques, where each row is 
+            %               the joint effort at any time step,
+            %       g: Gravity vector g,
+            %       Ftipmat: An N x 6 matrix of spatial forces applied by the 
+            %                end-effector (If there are no tip forces, the user should 
+            %                input a zero and a zero matrix will be used),
+            %       Mlist: List of link frames {i} relative to {i-1} at the home
+            %              position,
+            %       Glist: Spatial inertia matrices Gi of the links,
+            %       Slist: Screw axes Si of the joints in a space frame, in the format
+            %              of a matrix with the screw axes as the columns,
+            %       dt: The timestep between consecutive joint forces/torques,
+            %       intRes: Integration resolution is the number of times integration
+            %               (Euler) takes places between each time step. Must be an 
+            %               integer value greater than or equal to 1.
+            % Returns thetamat: The N x n matrix of robot joint angles resulting from 
+            %                   the specified joint forces/torques,
+            %         d_thetamat: The N x n matrix of robot joint velocities.
+            % This function simulates the motion of a serial chain given an open-loop 
+            % history of joint forces/torques. It calls a numerical integration 
+            % procedure that uses forward_dynamics.
+            
+            taumat = taumat';
+            Ftipmat = Ftipmat';
+            thetamat = taumat;
+            thetamat(:, 1) = theta;
+            d_thetamat = taumat;
+            d_thetamat(:, 1) = d_theta;
+            for i = 1: size(taumat, 2) - 1
+                for j = 1: intRes
+                    dd_theta ...
+                    = OpenChainMR.forward_dynamics(theta, d_theta, taumat(:,i), g, ...
+                                        Ftipmat(:, i), Mlist, Glist, Slist);     
+                    [theta, d_theta] = OpenChainMR.euler_stepping(theta, d_theta, ...
+                                                        dd_theta, dt / intRes);
+                end
+                thetamat(:, i + 1) = theta;
+                d_thetamat(:, i + 1) = d_theta;
+            end
+            thetamat = thetamat';
+            d_thetamat = d_thetamat';
+        end
+        function taumat ...
+            = inverse_dynamics_trajectory(thetamat, dthetamat, ddthetamat, ...
+                                        g, Ftipmat, Mlist, Glist, Slist)
+            % *** CHAPTER 8: DYNAMICS OF OPEN CHAINS ***
+            % Takes thetamat: An N x n matrix of robot joint variables,
+            %       dthetamat: An N x n matrix of robot joint velocities,
+            %       ddthetamat: An N x n matrix of robot joint accelerations,
+            %       g: Gravity vector g,
+            %       Ftipmat: An N x 6 matrix of spatial forces applied by the 
+            %                end-effector (If there are no tip forces, the user should
+            %                input a zero and a zero matrix will be used),
+            %       Mlist: List of link frames i relative to i-1 at the home position,
+            %       Glist: Spatial inertia matrices Gi of the links,
+            %       Slist: Screw axes Si of the joints in a space frame, in the format
+            %              of a matrix with the screw axes as the columns.
+            % Returns taumat: The N x n matrix of joint forces/torques for the 
+            %                 specified trajectory, where each of the N rows is the 
+            %                 vector of joint forces/torques at each time step.
+            % This function uses InverseDynamics to calculate the joint forces/torques 
+            % required to move the serial chain along the given trajectory.
+            
+            
+            thetamat = thetamat';
+            dthetamat = dthetamat';
+            ddthetamat = ddthetamat';
+            Ftipmat = Ftipmat';
+            taumat = thetamat;
+            for i = 1: size(thetamat, 2)
+                taumat(:, i) ...
+                = OpenChainMR.inverse_dynamics(thetamat(:, i), dthetamat(:, i), ddthetamat(:, i), ...
+                                    g, Ftipmat(:, i), Mlist, Glist, Slist);
+            end
+            taumat = taumat';
         end
         function s = time_scaling(Tf, t, mode)
             switch mode

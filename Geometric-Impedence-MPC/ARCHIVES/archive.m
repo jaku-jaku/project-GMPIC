@@ -17,6 +17,45 @@ for i=1:N_jnts
     end
 end
 
+function J_b_sl_ = compute_Body_Jacobian_for_all_links_from_Spatial(xi_R6_1_, exp_xi_theta_in_SE3_1_, g0_st_SE3_)
+    N_jnts = length(xi_R6_1_);
+    % J = [xi_1, xi_2', ... , xi_N' ]:
+    J_b_sl_ = cell(1,N_jnts);
+
+    % --- 
+    % Adjoint Transformation:
+    % - depends on current configuration of the manipulator
+    % --- 
+    A_ij = cell(N_jnts);
+    for i=1:N_jnts
+        for j=1:N_jnts
+            % disp([i,j])
+            if i>j
+                G_ji = Lie.prod_SE3_from_SE3xk({exp_xi_theta_in_SE3_1_{j+1:i}});
+                A_ij{i,j} = Lie.inv_Ad_SE3_from_SE3(G_ji);
+            elseif i==j
+                A_ij{i,j} = eye(6);
+            else
+                A_ij{i,j} = 0;
+            end
+        end
+    end
+    % [xi_N' ... xi_1']:
+    for i=1:N_jnts % for each link [Murray 4.27]
+        J_b_sl_{i} = zeros(6,N_jnts); 
+
+        % compute body twist for i th link:
+        xi_i = zeros(6,N_jnts); % 0s
+        for j=1:i
+            xi_i(:,j) = A_ij{i,j} * xi_R6_1_{j};
+        end
+        
+        % compute jacobian @ xi_i:
+        inv_Ad_g0_sl_i = Lie.inv_Ad_SE3_from_SE3(g0_st_SE3_{i});
+        J_b_sl_{i} = inv_Ad_g0_sl_i * xi_i;
+    end
+end
+
 %% --- 
 % Compute Moments and Inertia:
 % --- 

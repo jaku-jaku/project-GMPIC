@@ -73,7 +73,7 @@ classdef helper
             if close_window
                 close all;
                 global gFigureIndex;
-                gFigureIndex = 1;
+                gFigureIndex = 0;
             end
             global gdirectory;
             directory = sprintf("%s/%s", section, subsection);
@@ -123,30 +123,38 @@ classdef helper
             global gFigureIndex;
             f = nan;
             if index < 0
+                % auto incrementing figure indexing
                 gFigureIndex = gFigureIndex+1;
                 f = figure(gFigureIndex);
             elseif index == 1
+                % init figure with first index
                 gFigureIndex = 1;
                 f = figure(index);
             else
+                % create figure at the specified index
                 f = figure(index);
             end
+            % reset Here:
+            clf("reset");
         end
-        function plotLineTime(x,y,c,style)
+        function l=plotLineTime(x,y,c,style)
             l = plot(x,y,style,'Linewidth',1,'color',c);
             % scatter(x,y,60,linspace(1,250,length(x)),"filled");
         end
-        function annotate(fig,xy,offset,text,c)
+        function ha=annotate(fig,xy,offset,text,c)
             ha = annotation('textarrow','String',text, 'Color', c);
             ha.Parent=fig.CurrentAxes;
             ha.X = [xy(1)+offset(1) xy(1)];
             ha.Y = [xy(2)+offset(2) xy(2)];
         end
+        function setPlotSize(DIMENSION)
+            set(gcf,'units','points','position',[0, 0, DIMENSION(1), DIMENSION(2)]);
+        end
         %% Video Rec:
         function createRecorder(FOLDER, FILE_NAME, QUALITY_, FPS_)
             global vObj;
             global vObj_exist;
-            vObj_exist = false;
+            vObj_exist = true;
             EXP_PATH = sprintf('output/%s/%s.avi', FOLDER, FILE_NAME);
             vObj = VideoWriter(EXP_PATH);
             vObj.Quality = QUALITY_;
@@ -162,13 +170,15 @@ classdef helper
         end
         function terminateRecorder()
             global vObj;
+            global vObj_exist;
             if vObj_exist
                 close(vObj);
+                vObj_exist = false;
             end
         end
         %% Save:
         function saveFigure(DIMENSION, FOLDER, FILE_NAME)
-            set(gcf,'units','points','position',[0, 0, DIMENSION(1), DIMENSION(2)]);
+            helper.setPlotSize(DIMENSION);
             EXP_PATH = sprintf('output/%s/%s.png', FOLDER, FILE_NAME);
             exportgraphics(gcf,EXP_PATH,'BackgroundColor','white');
             helper.logutil("PLOT SAVED @: "+ EXP_PATH);
@@ -180,8 +190,13 @@ classdef helper
         end
         %% Casadi:
         function includeCasadi()
-            addpath('~/JX-Platform/casadi-3');
-            helper.logutil("Included Casadi-3!");
+            usr = getenv("USER");
+            if usr == "jaku"
+                addpath('~/JX-Platform/casadi-3');
+                helper.logutil("Included Casadi-3!");
+            else
+                import casadi.*; % by default
+            end
         end
         %% Diary:
         function createDiary(FOLDER, FILE_NAME)
@@ -219,6 +234,66 @@ classdef helper
                 str = sprintf('%s ', join(string(a), ', '));
             end
             str = sprintf("%s=[ %s ]\n",name,str);
+        end
+        function str = float2str(data)
+            str = strrep(string(data),'.','_');
+        end
+        %% Progress bar:
+        function textprogressbar(c)
+            % REF: https://www.mathworks.com/matlabcentral/fileexchange/28067-text-progress-bar
+            % This function creates a text progress bar. It should be called with a 
+            % STRING argument to initialize and terminate. Otherwise the number correspoding 
+            % to progress in % should be supplied.
+            % INPUTS:   C   Either: Text string to initialize or terminate 
+            %                       Percentage number to show progress 
+            % OUTPUTS:  N/A
+            % Example:  Please refer to demo_textprogressbar.m
+            % Author: Paul Proteus (e-mail: proteus.paul (at) yahoo (dot) com)
+            % Version: 1.0
+            % Changes tracker:  29.06.2010  - First version
+            % Inspired by: http://blogs.mathworks.com/loren/2007/08/01/monitoring-progress-of-a-calculation/
+            % Initialization
+            persistent strCR;           %   Carriage return pesistent variable
+            % Vizualization parameters
+            strPercentageLength = 10;   %   Length of percentage string (must be >5)
+            strDotsMaximum      = 10;   %   The total number of dots in a progress bar
+            % Main 
+            if isempty(strCR) && ~ischar(c),
+                % Progress bar must be initialized with a string
+                error('The text progress must be initialized with a string');
+            elseif isempty(strCR) && ischar(c),
+                % Progress bar - initialization
+                fprintf('%s',c);
+                strCR = -1;
+            elseif ~isempty(strCR) && ischar(c),
+                % Progress bar  - termination
+                strCR = [];  
+                fprintf([c '\n']);
+            elseif isnumeric(c)
+                % Progress bar - normal progress
+                c_int = floor(c*100);
+                percentageOut = [num2str(c_int) '%%'];
+                percentageOut = [percentageOut repmat(' ',1,strPercentageLength-length(percentageOut)-1)];
+                nDots = floor(c*strDotsMaximum);
+                dotOut = ['[' repmat('.',1,nDots) repmat(' ',1,strDotsMaximum-nDots) ']'];
+                strOut = [percentageOut dotOut];
+                
+                % Print it on the screen
+                if strCR == -1
+                    % Don't do carriage return during first run
+                    fprintf(strOut);
+                else
+                    % Do it during all the other runs
+                    fprintf([strCR strOut]);
+                end
+                
+                % Update carriage return
+                strCR = repmat('\b',1,length(strOut)-1);
+                
+            else
+                % Any other unexpected input
+                error('Unsupported argument type');
+            end
         end
     end
 end

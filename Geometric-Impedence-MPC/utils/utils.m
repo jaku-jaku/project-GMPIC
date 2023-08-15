@@ -1,7 +1,52 @@
 %% Utilities %%
 classdef utils
     methods(Static)
-        %% Plotting %%
+        %% 2D Plot:
+        function plot_time_data(data_cells, yLabels)
+            % assume: {{t(1...k),x(1..N,1...k),style,label},...}
+            N_cells = length(data_cells);
+            [N,Nk] = size(data_cells{1}.x);
+            t = tiledlayout(N,1);
+            t.TileSpacing = "tight";
+            legend_texts=[];
+            for j=1:N_cells
+                legend_texts=[legend_texts,data_cells{j}.label];
+            end
+            for i=1:N
+                nexttile; hold on; grid on;
+                for j=1:N_cells
+                    item = data_cells{j};
+                    plot(item.t,item.x(i,:), item.style);
+                end
+                ylabel(yLabels(i));
+                legend(legend_texts);
+            end
+            
+            xlabel("t [s]");
+        end
+        function plot_position_vs_t(cells_of_SE3s, list_of_labels, dT)
+            yLabels = ["x","y","z"];
+            N_data = length(cells_of_SE3s);
+            N_t = length(cells_of_SE3s{1});
+            ts = 0:dT:(N_t-1)*dT;
+            data_cells = cell(1,N_data);
+            style = "--"; % first one is reference
+            for i=1:N_data
+                xs = zeros(3,N_t);
+                for j=1:N_t
+                    xs(:,j) = cells_of_SE3s{i}{j}(1:3,4);
+                end
+                data_cells{i} = struct(...
+                    "t", ts,...
+                    "x", xs,...
+                    "style", style,...
+                    "label", list_of_labels(i) ...
+                 );
+                style = "-"; % else solid line
+            end
+            utils.plot_time_data(data_cells, yLabels);
+        end
+        %% Plotting 3D %%
         function plot_link( ...
             curret_config_sframe_SE3_base, ...
             link_relative_displacement_R3, ...
@@ -24,6 +69,75 @@ classdef utils
             % end
             % Plot the co-ordinate frame of the link at the base:
             utils.plot_axis(curret_config_sframe_SE3_base,0.1,style,link_base_frame_name)
+        end
+        %% Trajectory:
+        function plot_trajectory_from_SE3( ...
+            spatial_frame_SE3_, scale, style, if_label, axis_step)
+            
+            origin = [0;0;0;1];
+            
+            N = length(spatial_frame_SE3_);
+            p = zeros(4,N);
+            for i=1:axis_step:N
+                axis_name = "";
+                if if_label
+                    axis_name = string(i);
+                end
+                T = spatial_frame_SE3_{i};
+                utils.plot_axis( T, scale, style, axis_name )
+            end
+            for i=1:N
+                T = spatial_frame_SE3_{i};
+                p(:,i) = T * origin;
+            end
+            % plot line:
+            plot3(p(1,:),p(2,:),p(3,:),sprintf('%s', style),'LineWidth',2)
+
+            grid on;
+            % axis equal; 
+            xlabel('X Axis')
+            ylabel('Y Axis')
+            zlabel('Z Axis')
+        end
+        function plot_trajectory_from_twist( ...
+            spatial_frame_R6_, scale, style, if_label)
+
+            origin = [0;0;0;1];
+            
+            N = length(spatial_frame_R6_);
+            p = zeros(4,N);
+            for i=1:N
+                axis_name = "";
+                if if_label
+                    axis_name = string(i);
+                end
+                T = Lie.exp_map_SE3_from_R6(spatial_frame_R6_{i});
+                p(:,i) = T * origin;
+                utils.plot_axis( T, scale, style, axis_name )
+            end
+
+            % plot line:
+            plot3(p(1,:),p(2,:),p(3,:),sprintf('%s', style),'LineWidth',2)
+        end
+        function plot_trajectory_from_twist_mat( ...
+            spatial_frame_R6xk_, scale, style, if_label)
+
+            origin = [0;0;0;1];
+            
+            [m,N] = size(spatial_frame_R6xk_);
+            p = zeros(4,N);
+            for i=1:N
+                axis_name = "";
+                if if_label
+                    axis_name = string(i);
+                end
+                T = Lie.exp_map_SE3_from_R6(spatial_frame_R6xk_(:,i));
+                p(:,i) = T * origin;
+                utils.plot_axis( T, scale, style, axis_name )
+            end
+
+            % plot line:
+            plot3(p(1,:),p(2,:),p(3,:),sprintf('%s', style),'LineWidth',2)
         end
         function plot_axis_screw_motion( ...
             screw_motion_SE3, ...
@@ -81,7 +195,7 @@ classdef utils
             % Plot the coordinate frame of the tail:
         end
         %% Plotting Summit %%
-        function transformed_origin = plot_Summit(screw_rotation,loc_of_link_frame,link_name,axis_ref)
+        function transformed_origin = plot_Summit(screw_rotation,loc_of_link_frame,link_name)
             %UNTITLED4 PLot the summit
             % screw_rotation - This gives us the total solid-motion undergone by the
             % link
@@ -155,6 +269,15 @@ classdef utils
             % end
             % Plot the co-ordinate frame of the link at the base:
             utils.plot_axis_screw_motion(screw_rotation,loc_of_link_frame,0.1,'-',link_name)
+        end
+        function plot3DBoundary(RECT_LIMIT)
+            x1 = RECT_LIMIT(1); x2 = RECT_LIMIT(2);
+            y1 = RECT_LIMIT(3); y2 = RECT_LIMIT(4);
+            z1 = RECT_LIMIT(5); z2 = RECT_LIMIT(6);
+            hold on;
+            plot3([x1,x2,x2,x1,x1],[y2,y2,y2,y2,y2],[z1,z1,z2,z2,z1],"r--");
+            plot3([x1,x1,x1,x1,x1],[y1,y2,y2,y1,y1],[z1,z1,z2,z2,z1],"g--");
+            plot3([x1,x1,x2,x2,x1],[y1,y2,y2,y1,y1],[z1,z1,z1,z1,z1],"b--");
         end
     end
 end

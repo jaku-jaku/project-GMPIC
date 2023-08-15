@@ -33,10 +33,10 @@ mat_se3_target =[
     0     0     0     0
 ];
 mat_se3 = Lie.hat_se3_from_R6(vec_vw)
-validate.test_compare(mat_se3, mat_se3_target, "hat_se3_from_R6");
+validate.if_equivalent(mat_se3, mat_se3_target, "hat_se3_from_R6");
 
 vec_se3 = Lie.vee_R6_from_se3(mat_se3_target)'
-validate.test_compare(vec_se3, vec_vw, "vee_R6_from_se3");
+validate.if_equivalent(vec_se3, vec_vw, "vee_R6_from_se3");
 
 
 
@@ -53,7 +53,7 @@ T_target = [
 ];
 
 T = Lie.exp_map_SE3_from_R6(Lie.vee_R6_from_se3(se3mat)')
-validate.test_compare(T, T_target, "exp_map_SE3_from_R6");
+validate.if_equivalent(T, T_target, "exp_map_SE3_from_R6");
 
 T = [[1, 0, 0, 0]; [0, 0, -1, 0]; [0, 1, 0, 3]; [0, 0, 0, 1]];
 T_target = [
@@ -63,7 +63,7 @@ T_target = [
  0         0         0         0;
 ];
 T_mat = Lie.log_se3_from_SE3(T)
-validate.test_compare(T_mat, T_target, "log_se3_from_SE3");
+validate.if_equivalent(T_mat, T_target, "log_se3_from_SE3");
 
 %% ---
 helper.logtitle("spatial_forward_kinematics")
@@ -83,7 +83,7 @@ T_target = [
 
 T_mat = OpenChainMR.spatial_forward_kinematics(M, Slist, thetalist)
 
-validate.test_compare(T_mat, T_target, "spatial_forward_kinematics");
+validate.if_equivalent(T_mat, T_target, "spatial_forward_kinematics");
 
 %% ---
 helper.logtitle("spatial_inverse_kinematics")
@@ -101,7 +101,7 @@ ev = 0.001;
     Slist, M, T, thetalist0, eomg, ev)
 
 theta_target = [1.5707; 2.9997; 3.1415];
-validate.test_compare(thetalist, theta_target, "spatial_inverse_kinematics");
+validate.if_equivalent(thetalist, theta_target, "spatial_inverse_kinematics");
 
 %% ---
 helper.logtitle("body_forward_kinematics")
@@ -121,7 +121,7 @@ T_target = [
 
 T_mat = OpenChainMR.body_forward_kinematics(M, Blist, thetalist)
 
-validate.test_compare(T_mat, T_target, "body_forward_kinematics");
+validate.if_equivalent(T_mat, T_target, "body_forward_kinematics");
 %% ---
 helper.logtitle("body_inverse_kinematics")
 
@@ -138,7 +138,7 @@ ev = 0.001;
     Blist, M, T, thetalist0, eomg, ev)
 
 theta_target = [1.5707; 2.9997; 3.1415];
-validate.test_compare(thetalist, theta_target, "body_inverse_kinematics");
+validate.if_equivalent(thetalist, theta_target, "body_inverse_kinematics");
 
 
 %% [OpenChainMR Lib Testing]:
@@ -160,7 +160,7 @@ Js_target =    [
     1.0000         0    0.8912   -0.0453;
 ];
 Js = OpenChainMR.spatial_jacobian(Slist, theta)
-validate.test_compare(Js, Js_target, "Space Jacobian");
+validate.if_equivalent(Js, Js_target, "Space Jacobian");
 
 Jb_target =    [
       2.3259    1.6681    0.5641    0.2000;
@@ -171,7 +171,7 @@ Jb_target =    [
      -0.6671    0.0362   -0.9320         0;
 ];
 Jb = OpenChainMR.body_jacobian(Slist, theta)
-validate.test_compare(Jb, Jb_target, "Body Jacobian");
+validate.if_equivalent(Jb, Jb_target, "Body Jacobian");
 
 
 %% Example Input (3 Link Robot):
@@ -198,11 +198,11 @@ Slist = [[      0; 1;     0; 1; 0; 1], ...
 helper.logtitle("Dynamic Equations")
 tau_target = [ 74.6962; -33.0675; -3.2306 ];
 tau = OpenChainMR.inverse_dynamics(theta, d_theta, dd_theta, g, Ftip, Mlist, Glist, Slist)
-validate.test_compare(tau, tau_target, "Inverse Dynamics")
+validate.if_equivalent(tau, tau_target, "Inverse Dynamics")
 
 C_target = [0.2645; -0.0551; -0.0069];
 C = OpenChainMR.vel_qualdratic_force(theta, d_theta, Mlist, Glist, Slist)
-validate.test_compare(C, C_target, "Vel Quadratic Force")
+validate.if_equivalent(C, C_target, "Vel Quadratic Force")
 
 M_target = [
     22.5433   -0.3071   -0.0072;
@@ -210,7 +210,7 @@ M_target = [
     -0.0072    0.4322    0.1916; 
 ];
 M = OpenChainMR.mass_matrix(theta, Mlist, Glist, Slist)
-validate.test_compare(M, M_target, "Mass Matrix")
+validate.if_equivalent(M, M_target, "Mass Matrix")
 
 %%
 % test:
@@ -240,13 +240,11 @@ Kd = 1.1;
 
 % test:
 tau_target = [133.0053; -29.9422; -3.0328];
-tau = OpenChainMR.force_computed_at_EE(theta, d_theta, e_int, g, ... 
+tau = OpenChainMR.computed_torque_at_joints(theta, d_theta, e_int, g, ... 
                             Mlist, Glist, Slist, ...
                             r_theta, r_d_theta, r_dd_theta, ...
                             Kp, Ki, Kd)
-validate.test_compare(tau, tau_target, "Computed Torque")
-
-
+validate.if_equivalent(tau, tau_target, "Computed Torque")
 
 
 %% --- 
